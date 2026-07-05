@@ -1,0 +1,25 @@
+# Fichiers système Windows
+Thumbs.db
+desktop.ini
+*.lnk
+
+# Fichiers macOS
+.DS_Store
+
+# Fichiers de développement
+*.log
+*.tmp
+*.bak
+*.pyc
+__pycache__/
+
+# Dépendances Node (si utilisé plus tard)
+node_modules/
+
+# Variables d'environnement sensibles (NE JAMAIS committer)
+.env
+.env.local
+.env.production
+
+# Scripts utilitaires non nécessaires en production
+check_braces.py

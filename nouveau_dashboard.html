@@ -1,0 +1,108 @@
+<!-- Nouveau Dashboard - Copier ce code pour remplacer la section dashboard dans index.html -->
+<!-- Remplacer de la ligne 95 à environ ligne 238 -->
+
+<!-- Views -->
+<section id="accueil" class="view active-view">
+    <!-- Clean Header -->
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2.5rem;">
+        <div>
+            <h1 style="font-size: 2rem; font-weight: 700; color: #1e293b; margin: 0 0 0.5rem 0;">Tableau de Bord</h1>
+            <p id="current-date-full" style="color: #64748b; font-size: 0.95rem; margin: 0;"></p>
+        </div>
+        <div style="display: flex; gap: 1rem; align-items: center;">
+            <div style="background: #f0fdf4; padding: 0.5rem 1rem; border-radius: 0.5rem; border: 1px solid #86efac;">
+                <span style="color: #166534; font-weight: 600; font-size: 0.9rem;">Caisse Générale</span>
+            </div>
+            <div
+                style="background: white; padding: 0.5rem 1rem; border-radius: 0.5rem; border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 0.5rem;">
+                <span style="color: #64748b; font-size: 0.85rem;">Exercice:</span>
+                <select id="fiscal-year-select"
+                    style="border: none; font-weight: 700; color: #1e293b; font-size: 0.95rem; background: transparent; cursor: pointer;">
+                    <option value="2020">2020</option>
+                    <option value="2021">2021</option>
+                    <option value="2022">2022</option>
+                    <option value="2023">2023</option>
+                    <option value="2024">2024</option>
+                    <option value="2025">2025</option>
+                    <option value="2026" selected>2026</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- KPI Cards - Clean Design with Left Borders -->
+    <div
+        style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 2.5rem;">
+        <!-- Solde Actuel -->
+        <div
+            style="background: white; border-radius: 0.5rem; padding: 1.5rem; border-left: 4px solid #334155; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+            <div
+                style="color: #64748b; font-size: 0.85rem; font-weight: 600; text-transform: uppercase; margin-bottom: 0.75rem;">
+                SOLDE ACTUEL</div>
+            <div id="kpi-balance" style="font-size: 1.75rem; font-weight: 800; color: #1e293b;">0 FCFA</div>
+        </div>
+
+        <!-- Recettes -->
+        <div
+            style="background: white; border-radius: 0.5rem; padding: 1.5rem; border-left: 4px solid #3b82f6; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+            <div
+                style="color: #64748b; font-size: 0.85rem; font-weight: 600; text-transform: uppercase; margin-bottom: 0.75rem;">
+                RECETTES (MOIS)</div>
+            <div id="kpi-income" style="font-size: 1.75rem; font-weight: 800; color: #3b82f6;">0 FCFA</div>
+        </div>
+
+        <!-- Dépenses -->
+        <div
+            style="background: white; border-radius: 0.5rem; padding: 1.5rem; border-left: 4px solid #ef4444; box-shadow: 0.1px 3px rgba(0,0,0,0.1);">
+            <div
+                style="color: #64748b; font-size: 0.85rem; font-weight: 600; text-transform: uppercase; margin-bottom: 0.75rem;">
+                DÉPENSES (MOIS)</div>
+            <div id="kpi-expense" style="font-size: 1.75rem; font-weight: 800; color: #ef4444;">0 FCFA</div>
+        </div>
+
+        <!-- Total Acomptes -->
+        <div
+            style="background: white; border-radius: 0.5rem; padding: 1.5rem; border-left: 4px solid #f97316; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+            <div
+                style="color: #64748b; font-size: 0.85rem; font-weight: 600; text-transform: uppercase; margin-bottom: 0.75rem;">
+                TOTAL ACOMPTES</div>
+            <div id="kpi-acomptes" style="font-size: 1.75rem; font-weight: 800; color: #f97316;">0 FCFA</div>
+        </div>
+
+        <!-- Total Prêts -->
+        <div
+            style="background: white; border-radius: 0.5rem; padding: 1.5rem; border-left: 4px solid #8b5cf6; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+            <div
+                style="color: #64748b; font-size: 0.85rem; font-weight: 600; text-transform: uppercase; margin-bottom: 0.75rem;">
+                TOTAL PRÊTS</div>
+            <div id="kpi-loans" style="font-size: 1.75rem; font-weight: 800; color: #8b5cf6;">0 FCFA</div>
+        </div>
+    </div>
+
+    <!-- Financial Evolution Chart -->
+    <div
+        style="background: white; border-radius: 0.75rem; padding: 2rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 2rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+            <h3 style="font-size: 1.25rem; font-weight: 700; color: #1e293b; margin: 0;">📊 Évolution Financière</h3>
+            <input type="text" placeholder="Rechercher globale..."
+                style="padding: 0.5rem 1rem; border: 1px solid #e2e8f0; border-radius: 0.5rem; font-size: 0.9rem;">
+        </div>
+        <canvas id="financial-chart" style="max-height: 300px;"></canvas>
+    </div>
+
+    <!-- Quick Actions -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem;">
+        <button class="btn-primary" onclick="switchView('saisie')"
+            style="padding: 1rem; font-size: 1rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+            <i class="fa-solid fa-plus"></i> Nouvelle Opération
+        </button>
+        <button class="btn-secondary" onclick="switchView('import')"
+            style="padding: 1rem; font-size: 1rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+            <i class="fa-solid fa-file-import"></i> Importer des Données
+        </button>
+        <button class="btn-secondary" onclick="switchView('rapports')"
+            style="padding: 1rem; font-size: 1rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+            <i class="fa-solid fa-file-contract"></i> Générer un Rapport
+        </button>
+    </div>
+</section>

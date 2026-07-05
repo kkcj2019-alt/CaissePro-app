@@ -1,0 +1,1922 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CaissePro</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display:swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="login_logic.js"></script>
+    <!-- Anti-flicker script: hides body until JS init completes -->
+    <style>
+        body.fouc-loading {
+            opacity: 0;
+            pointer-events: none;
+        }
+    </style>
+    <script>
+        // Check if we have a saved view that is not 'accueil'
+        if (localStorage.getItem('currentView') && localStorage.getItem('currentView') !== 'accueil') {
+            document.documentElement.classList.add('fouc-loading');
+        }
+    </script>
+</head>
+
+<body>
+    <!-- login Modal -->
+    <div id="login-modal"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; justify-content: center; align-items: center;">
+        <div class="card"
+            style="width: 100%; max-width: 400px; padding: 2rem; background: white; border-radius: 1rem; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);">
+            <div style="text-align: center; margin-bottom: 2rem;">
+                <div
+                    style="width: 60px; height: 60px; background: var(--primary-color); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem; color: white; font-size: 1.5rem;">
+                    <i class="fa-solid fa-lock"></i>
+                </div>
+                <h2 style="color: var(--text-dark); margin-bottom: 0.5rem;">Connexion</h2>
+                <p style="color: var(--text-muted);">Veuillez vous identifier pour accéder à CaissePro.</p>
+            </div>
+            <form id="login-form">
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <label
+                        style="display:block; margin-bottom: 0.5rem; color: var(--text-dark); font-weight: 500;">Identifiant</label>
+                    <input type="text" id="login-username" class="form-control" required placeholder="Ex: admin"
+                        style="width: 100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 0.375rem;">
+                </div>
+                <div class="form-group" style="margin-bottom: 1.5rem;">
+                    <label style="display:block; margin-bottom: 0.5rem; color: var(--text-dark); font-weight: 500;">Mot
+                        de passe (Code)</label>
+                    <input type="password" id="login-password" class="form-control" required placeholder="****"
+                        style="width: 100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 0.375rem;">
+                </div>
+                <button type="submit" class="btn-primary"
+                    style="width: 100%; padding: 0.75rem; font-size: 1rem; justify-content: center;">
+                    <i class="fa-solid fa-right-to-bracket" style="margin-right: 0.5rem;"></i> se connecter
+                </button>
+            </form>
+        </div>
+    </div>
+    <div class="app-container">
+        <!-- sidebar Navigation -->
+        <nav class="sidebar">
+            <div class="logo-container">
+                <i class="fa-solid fa-vault"></i>
+                <h1>CaissePro</h1>
+            </div>
+            <ul class="menu-list">
+                <li class="menu-item active" data-target="accueil">
+                    <i class="fa-solid fa-house"></i>
+                    <span>Accueil</span>
+                </li>
+                <li class="menu-item" data-target="saisie">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                    <span>Saisie</span>
+                </li>
+                <li class="menu-item" data-target="tiers">
+                    <i class="fa-solid fa-users"></i>
+                    <span>Tiers</span>
+                </li>
+                <li class="menu-item" data-target="rh">
+                    <i class="fa-solid fa-user-tie"></i>
+                    <span>RH</span>
+                </li>
+                <li class="menu-item" data-target="acomptes-prets">
+                    <i class="fa-solid fa-hand-holding-dollar"></i>
+                    <span>Acompte & Prêt</span>
+                </li>
+                <li class="menu-item" data-target="rapports">
+                    <i class="fa-solid fa-file-contract"></i>
+                    <span>Rapports</span>
+                </li>
+                <li class="menu-item" data-target="stats">
+                    <i class="fa-solid fa-chart-line"></i>
+                    <span>Stats</span>
+                </li>
+                <li class="menu-item" data-target="codes">
+                    <i class="fa-solid fa-tags"></i>
+                    <span>Codes</span>
+                </li>
+                <li class="menu-item" data-target="modeles">
+                    <i class="fa-solid fa-clipboard-list"></i>
+                    <span>Modèles</span>
+                </li>
+                <li class="menu-item" data-target="import">
+                    <i class="fa-solid fa-file-import"></i>
+                    <span>Import</span>
+                </li>
+                <li class="menu-item" data-target="agents">
+                    <i class="fa-solid fa-user-shield"></i>
+                    <span>Agents</span>
+                </li>
+                <li class="menu-item" data-target="parametres">
+                    <i class="fa-solid fa-gear"></i>
+                    <span>Param.</span>
+                </li>
+            </ul>
+        </nav>
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <header class="top-bar">
+                <h2 id="page-title">Tableau de Bord</h2>
+                <div style="flex-grow: 1; display: flex; justify-content: center; align-items: center; gap: 1rem;">
+                    <select id="global-caisse-select"
+                        style="padding: 0.25rem 0.5rem; border-radius: 0.5rem; border: 1px solid #e2e8f0; font-size: 0.9rem; color: var(--text-muted); background: #f8fafc; cursor: pointer; outline: none;">
+                        <option value="all">🌍 TOUTES LES CAISSES</option>
+                        <option value="general">Caisse Générale</option>
+                        <option value="secondary">Caisse secondaire</option>
+                    </select>
+                </div>
+                <div class="user-profile" style="gap: 1rem;">
+                    <div class="top-quick-nav"
+                        style="display: flex; gap: 0.5rem; margin-right: 1rem; border-right: 1px solid var(--border-color); padding-right: 1rem;">
+                        <button class="btn-icon" title="Acomptes" onclick="switchView('acomptes-prets')"
+                            style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary-color);">
+                            <i class="fa-solid fa-money-bill-trend-up"></i>
+                        </button>
+                        <button class="btn-icon" title="Prêts" onclick="switchView('acomptes-prets')"
+                            style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary-color);">
+                            <i class="fa-solid fa-hand-holding-dollar"></i>
+                        </button>
+                    </div>
+                    <span id="current-date"></span>
+                    <button id="btn-logout" title="Se déconnecter"
+                        style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 1.1rem; padding: 0.25rem;">
+                        <i class="fa-solid fa-power-off"></i>
+                    </button>
+                    <div class="avatar">
+                        <i class="fa-solid fa-user"></i>
+                    </div>
+                </div>
+            </header>
+            <!-- Views-->
+            <!-- Views -->
+            <section id="accueil" class="view active-view">
+                <!-- Excel-Chic Header -->
+                <div class="excel-header" style="border-radius: 4px 4px 0 0; margin-bottom: 0;">
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <i class="fa-solid fa-table-list" style="font-size: 1.5rem;"></i>
+                        <h1
+                            style="font-size: 1.5rem; font-weight: 800; margin: 0; letter-spacing: 0.02em; color: white;">
+                            TABLEAU DE BORD OPÉRATIONNEL
+                        </h1>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 1.5rem;">
+                        <div id="current-date-full"
+                            style="font-size: 0.9rem; font-weight: 700; background: rgba(0,0,0,0.2); padding: 0.5rem 1rem; border-radius: 4px;">
+                            <i class="fa-solid fa-calendar-day"></i> <span>--/--/----</span>
+                        </div>
+                        <div
+                            style="display: flex; align-items: center; gap: 0.5rem; background: white; color: var(--primary-color); padding: 0.4rem 1rem; border-radius: 4px; border: 1px solid var(--excel-border);">
+                            <span
+                                style="font-size: 0.75rem; font-weight: 800; text-transform: uppercase;">Exercice</span>
+                            <select id="fiscal-year-select"
+                                style="border: none; font-weight: 800; color: var(--primary-color); outline: none; cursor: pointer;">
+                                <option value="2024">2024</option>
+                                <option value="2025">2025</option>
+                                <option value="2026" selected>2026</option>
+                                <option value="2027">2027</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Excel-Style KPI Grid -->
+                <div class="excel-sheet"
+                    style="border-top: none; padding: 1.5rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+
+                    <!-- Solde Card -->
+                    <div class="excel-sheet" id="card-balance"
+                        style="padding: 1.25rem; border-left: 4px solid var(--primary-color); cursor: pointer;">
+                        <div
+                            style="font-size: 0.7rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.5rem;">
+                            Total Solde Disponible</div>
+                        <div id="kpi-balance" style="font-size: 1.8rem; font-weight: 800; color: var(--primary-color);">
+                            0 FCFA</div>
+                        <div
+                            style="margin-top: 0.5rem; font-size: 0.65rem; color: var(--text-muted); border-top: 1px solid var(--excel-border); padding-top: 0.5rem;">
+                            Flux Global Consolidé</div>
+                    </div>
+
+                    <!-- Income Card -->
+                    <div class="excel-sheet" id="card-income"
+                        style="padding: 1.25rem; border-left: 4px solid #10b981; cursor: pointer;">
+                        <div
+                            style="font-size: 0.7rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.5rem;">
+                            Recettes du Mois</div>
+                        <div id="kpi-income" style="font-size: 1.8rem; font-weight: 800; color: #10b981;">0 FCFA</div>
+                        <div style="margin-top: 0.5rem; font-size: 0.65rem; color: #059669; font-weight: 700;">+ Entrées
+                            enregistrées</div>
+                    </div>
+
+                    <!-- Expense Card -->
+                    <div class="excel-sheet" id="card-expense"
+                        style="padding: 1.25rem; border-left: 4px solid #ef4444; cursor: pointer;">
+                        <div
+                            style="font-size: 0.7rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.5rem;">
+                            Dépenses du Mois</div>
+                        <div id="kpi-expense" style="font-size: 1.8rem; font-weight: 800; color: #ef4444;">0 FCFA</div>
+                        <div style="margin-top: 0.5rem; font-size: 0.65rem; color: #dc2626; font-weight: 700;">- SORTIEs
+                            enregistrées</div>
+                    </div>
+
+                    <!-- Finance Card -->
+                    <div class="excel-sheet" id="card-acomptes-group"
+                        style="padding: 1.25rem; border-left: 4px solid var(--accent-chic); cursor: pointer;">
+                        <div
+                            style="font-size: 0.7rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.5rem;">
+                            Suivi Acomptes & Prêts</div>
+                        <div style="display: flex; gap: 1rem; align-items: center;">
+                            <div>
+                                <div id="kpi-acomptes"
+                                    style="font-size: 1.1rem; font-weight: 800; color: var(--accent-chic);">0 FCFA</div>
+                                <div style="font-size: 0.6rem; color: var(--text-muted);">Acomptes</div>
+                            </div>
+                            <div style="width: 1px; height: 20px; background: var(--excel-border);"></div>
+                            <div>
+                                <div id="kpi-loans"
+                                    style="font-size: 1.1rem; font-weight: 800; color: var(--accent-chic);">0 FCFA</div>
+                                <div style="font-size: 0.6rem; color: var(--text-muted);">Prêts</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Financial Evolution & Quick Actions -->
+                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
+
+                    <div class="excel-sheet">
+                        <div class="excel-header"
+                            style="background: var(--secondary-color); border-bottom: none; padding: 0.75rem 1.25rem;">
+                            <h3
+                                style="font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem; color: #cbd5e1;">
+                                <i class="fa-solid fa-chart-line"></i> ÉVOLUTION FINANCIÈRE
+                            </h3>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <select id="dashboard-month-select" class="excel-sheet"
+                                    style="padding: 0.3rem 0.75rem; font-size: 0.75rem; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1); color: white; border-radius: 2px; outline:none; cursor:pointer;">
+                                    <option value="0">Janvier</option>
+                                    <option value="1">Février</option>
+                                    <option value="2">Mars</option>
+                                    <option value="3">Avril</option>
+                                    <option value="4">Mai</option>
+                                    <option value="5">Juin</option>
+                                    <option value="6">Juillet</option>
+                                    <option value="7">Août</option>
+                                    <option value="8">Septembre</option>
+                                    <option value="9">Octobre</option>
+                                    <option value="10">Novembre</option>
+                                    <option value="11">Décembre</option>
+                                </select>
+                                <div style="position: relative;">
+                                    <i class="fa-solid fa-search"
+                                        style="position: absolute; left: 0.5rem; top: 50%; transform: translateY(-50%); color: rgba(255,255,255,0.5); font-size: 0.7rem;"></i>
+                                    <input type="text" id="global-search" class="excel-sheet"
+                                        placeholder="Rechercher..."
+                                        style="padding: 0.3rem 0.5rem 0.3rem 1.5rem; font-size: 0.75rem; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1); color: white; border-radius: 2px; outline:none; width: 150px;">
+                                </div>
+                            </div>
+                        </div>
+                        <div style="padding: 1.5rem; border-top: 1px solid var(--excel-border);">
+                            <canvas id="financial-chart" style="max-height: 300px; width: 100%;"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Actions Rapides -->
+                    <div class="excel-sheet">
+                        <div class="excel-header"
+                            style="background: var(--accent-chic); border-bottom: none; padding: 0.75rem 1.25rem;">
+                            <h3 style="font-size: 0.9rem; color: white;"><i class="fa-solid fa-bolt"></i> ACTIONS
+                                RAPIDES</h3>
+                        </div>
+                        <div style="padding: 1.25rem; display: flex; flex-direction: column; gap: 0.75rem;">
+                            <button class="btn-primary hover-glow" onclick="switchView('saisie')"
+                                style="background: var(--primary-color); border: 1px solid var(--primary-hover); padding: 0.8rem; border-radius: 4px; font-weight: 700; width: 100%;">
+                                <i class="fa-solid fa-plus-circle"></i> NOUVELLE SAISIE
+                            </button>
+                            <button class="excel-sheet hover-glow" onclick="switchView('import')"
+                                style="padding: 0.8rem; font-weight: 700; color: var(--secondary-color); width: 100%; text-align: center; border: 1px solid var(--excel-border); background: var(--excel-header-bg);">
+                                <i class="fa-solid fa-file-excel"></i> IMPORTATION EXCEL
+                            </button>
+                            <button class="excel-sheet hover-glow" onclick="switchView('rapports')"
+                                style="padding: 0.8rem; font-weight: 700; color: var(--text-muted); width: 100%; text-align: center; border: 1px solid var(--excel-border);">
+                                <i class="fa-solid fa-print"></i> ÉTATS & RAPPORTS
+                            </button>
+                        </div>
+                    </div>
+
+                </div>
+
+            </section>
+            <section id="saisie" class="view hidden-view">
+                <div class="excel-sheet" style="margin-bottom: 2rem;">
+                    <div class="excel-header">
+                        <h3><i class="fa-solid fa-pen-to-square"></i> NOUVELLE TRANSACTION</h3>
+                        <div
+                            style="background: rgba(255,255,255,0.1); padding: 0.4rem 1rem; border-radius: 4px; font-size: 0.75rem; font-weight: 700;">
+                            <i class="fa-solid fa-keyboard"></i> SAISIE RAPIDE ACTIVAÉE
+                        </div>
+                    </div>
+
+                    <div
+                        style="padding: 1rem 1.5rem; background: var(--excel-header-bg); border-bottom: 1px solid var(--excel-border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                        <div class="saisie-modes" id="saisie-modes-container" style="flex: 1; margin: 0;">
+                            <button type="button" class="mode-btn active" data-mode="libre">📄 Standard</button>
+                            <button type="button" class="mode-btn" data-mode="tiers">👥 Avec Tiers</button>
+                            <button type="button" class="mode-btn" data-mode="acompte">💰 Acompte</button>
+                            <button type="button" class="mode-btn" data-mode="pret">🏦 Prêt</button>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 1rem; flex: 1; justify-content: flex-end;">
+                            <label for="template-select"
+                                style="font-size: 0.7rem; font-weight: 800; color: var(--text-muted);">MODÈLE :</label>
+                            <select id="template-select" class="excel-sheet"
+                                style="padding: 0.4rem; border: 1px solid var(--excel-border); font-size: 0.8rem; min-width: 200px;">
+                                <option value="">-- Choisir un modèle --</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="premium-form-container">
+                        <form id="transaction-form" class="v5-ultra-grid-horizontal">
+                            <input type="hidden" id="category" value="DIVERS">
+
+                            <!-- BLOC 0 : DATE & TYPE (intégré dans la ligne) -->
+                            <div class="saisie-group-block" style="border-left: 4px solid var(--primary-color);">
+                                <div class="group-header">📅 DATE & FLUX</div>
+                                <div class="form-row-compact">
+                                    <div class="form-group">
+                                        <label>DATE</label>
+                                        <input type="date" id="date" required style="width: 130px;">
+                                    </div>
+                                    <div class="form-group" style="min-width: unset;">
+                                        <label>TYPE</label>
+                                        <div class="hero-type-toggle" id="type-toggle-container" style="margin:0;">
+                                            <button type="button" class="type-btn income" id="btn-type-income"
+                                                data-value="income">ENTRÉE</button>
+                                            <button type="button" class="type-btn active expense" id="btn-type-expense"
+                                                data-value="expense">SORTIE</button>
+                                            <input type="radio" name="type" id="type-income" value="income"
+                                                style="display:none">
+                                            <input type="radio" name="type" id="type-expense" value="expense" checked
+                                                style="display:none">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- SECTION SAISIE UNIQUE ULTRA-HORIZONTALE -->
+                            <div class="saisie-mega-row"
+                                style="display: flex; flex-wrap: nowrap; gap: 10px; align-items: flex-end; background: #fff; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0; overflow-x: auto;">
+
+                                <!-- 1. OPÉRATION -->
+                                <div class="form-group">
+                                    <label>CODE</label>
+                                    <input type="text" id="code-input" placeholder="Tr" list="codes-datalist"
+                                        style="width: 60px; text-transform: uppercase;">
+                                    <input type="hidden" id="category">
+                                </div>
+                                <div class="form-group" style="flex: 1; min-width: 120px;">
+                                    <label>DÉTAILS / LIBELLÉ</label>
+                                    <input type="text" id="details" placeholder="Libellé opération...">
+                                </div>
+
+                                <!-- 2. MONTANT & MODE -->
+                                <div class="form-group">
+                                    <label>MONTANT CAISSE</label>
+                                    <input type="number" id="amount" placeholder="0" required
+                                        style="font-weight: 800; color: var(--primary-color); width: 120px;">
+                                </div>
+                                <div class="form-group" id="amount-charge-group" style="display: none;">
+                                    <label>MONTANT DE LA CHARGE</label>
+                                    <input type="number" id="amount-charge" placeholder="0"
+                                        style="width: 80px; color: #ef4444;">
+                                </div>
+                                <div class="form-group">
+                                    <label>MODE</label>
+                                    <select id="payment-mode" style="width: 100px;">
+                                        <option value="cash">💵 Espèce</option>
+                                        <option value="wave">🌊 Wave</option>
+                                        <option value="om">📶 OM</option>
+                                        <option value="mtn">📶 MTN</option>
+                                        <option value="moov">📶 Moov</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" id="payment-ref-group" style="display: none;">
+                                    <label>REF/N°</label>
+                                    <input type="text" id="payment-ref" placeholder="Ref..." style="width: 80px;">
+                                </div>
+
+                                <!-- 3. ACTEURS (Remettant/Exéc.) -->
+                                <div class="form-group" id="remettant-group">
+                                    <label>REMETTANT</label>
+                                    <input type="text" id="agent-remettant" list="employees-list" placeholder="Donneur"
+                                        style="width: 100px;">
+                                </div>
+                                <div class="form-group" id="executor-group">
+                                    <label>EXÉCUTANT</label>
+                                    <input type="text" id="executor" list="staff-list" placeholder="Receveur"
+                                        style="width: 100px;">
+                                </div>
+
+                                <!-- 4. BÉNÉFICIAIRE -->
+                                <div class="form-group" id="partner-group" style="flex: 1; min-width: 120px;">
+                                    <label id="partner-label">BÉNÉFICIAIRE</label>
+                                    <div style="display: flex; gap: 2px;" id="single-beneficiary-wrap">
+                                        <input type="text" id="partner" list="partners-list" placeholder="Tiers"
+                                            style="width: 100%;">
+                                        <input type="text" id="employee-beneficiary" list="employees-list"
+                                            placeholder="Employé" style="display: none; width: 100%;">
+                                    </div>
+                                </div>
+
+                                <!-- 5. CHAMPS RH (Prét/Acompte) -->
+                                <div class="form-group loan-only" style="display: none;">
+                                    <label>DURÉE (MOIS)</label>
+                                    <input type="number" id="loan-duration" placeholder="Mois" style="width: 60px;">
+                                </div>
+                                <div class="form-group loan-only" style="display: none;">
+                                    <label>MENSUALITÉ</label>
+                                    <input type="number" id="loan-monthly" placeholder="Mens." style="width: 80px;">
+                                </div>
+                                <div class="form-group loan-only" style="display: none;">
+                                    <label>DÉBUT</label>
+                                    <input type="text" id="loan-start-date" placeholder="Ex: mars/2026"
+                                        style="width: 100px;">
+                                </div>
+                                <div class="form-group loan-only" style="display: none;">
+                                    <label>FIN</label>
+                                    <input type="text" id="loan-end-date" placeholder="Ex: sept/2026"
+                                        style="width: 100px; background: #f8fafc;">
+                                </div>
+                                <div class="form-group acompte-only" style="display: none;">
+                                    <label>MOIS DÉDUC.</label>
+                                    <input type="month" id="deduction-month" style="width: 120px;">
+                                </div>
+
+                                <div class="form-group"
+                                    style="margin-left: auto; display: flex; align-items: center; gap: 10px;">
+                                    <label
+                                        style="font-size: 0.65rem; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; gap: 4px; margin-bottom: 0;">
+                                        <input type="checkbox" id="save-as-model" style="width: 14px; height: 14px;">
+                                        MODÈLE ?
+                                    </label>
+                                    <button type="submit" class="btn-primary" style="height: 38px; padding: 0 20px;">
+                                        <i class="fa-solid fa-check"></i> OK
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Bouton Saisie Multiple (Isolé) -->
+                            <button type="button" id="toggle-multi-beneficiary"
+                                style="margin-top: 5px; font-size: 0.65rem; padding: 4px 8px; background: #f8fafc; border: 1px solid var(--primary-color); color: var(--primary-color); border-radius: 4px; cursor: pointer; font-weight: 800; display: inline-flex; align-items: center; gap: 4px;">
+                                <i class="fa-solid fa-users"></i> SAISIE MULTIPLE
+                            </button>
+
+                            <!-- Intégration Saisie Multiple (Container) -->
+                            <div id="multi-beneficiary-container"
+                                style="display: none; margin-top: 10px; background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px dashed #cbd5e1;">
+                                <div class="group-header"
+                                    style="margin-bottom: 10px; font-size: 0.75rem; color: var(--primary-color); font-weight: 800;">
+                                    SAISIE MULTIPLE</div>
+                                <div id="multi-beneficiary-list" style="margin-bottom: 10px;"></div>
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <button type="button" id="add-beneficiary-row" class="btn-secondary"
+                                        style="font-size: 0.7rem; padding: 4px 8px;">+ Ajouter</button>
+                                    <div style="font-weight: 800; font-size: 0.85rem; color: var(--primary-color);"
+                                        id="multi-total-container">
+                                        Total: <span id="multi-total">0 CFA</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Modal de Sélection d'Employés -->
+                            <div class="modal-overlay" id="employee-selection-overlay"></div>
+                            <div id="employee-selection-modal">
+                                <div class="modal-header">
+                                    <h4>CHOISIR LES BÉNÉFICIAIRES</h4>
+                                    <button type="button" onclick="closeEmployeeModal()"
+                                        style="background:none; border:none; color:var(--text-muted); cursor:pointer;"><i
+                                            class="fa-solid fa-times"></i></button>
+                                </div>
+                                <div class="modal-body" id="employee-selection-list">
+                                    <!-- List populated via JS -->
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn-soft btn-soft-cancel"
+                                        onclick="closeEmployeeModal()">ANNULER</button>
+                                    <button type="button" class="btn-soft btn-soft-confirm"
+                                        id="confirm-employee-selection">VALIDER LA SÉLECTION</button>
+                                </div>
+                            </div>
+
+                            <datalist id="codes-datalist"></datalist>
+                            <datalist id="partners-list"></datalist>
+                            <datalist id="staff-list"></datalist>
+                            <datalist id="employees-list"></datalist>
+                        </form>
+                    </div>
+
+
+
+                    <div class="excel-sheet">
+                        <div class="excel-header" style="background: var(--secondary-color);">
+                            <h3><i class="fa-solid fa-clock-rotate-left"></i> HISTORIQUE DES SAISIES</h3>
+                            <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+                                <div style="position: relative;">
+                                    <i class="fa-solid fa-magnifying-glass"
+                                        style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: rgba(255,255,255,0.7); font-size: 0.8rem;"></i>
+                                    <input type="text" id="saisie-search" placeholder="Rechercher ici..."
+                                        class="excel-sheet tooltip-container"
+                                        title="Tapez ici pour filtrer l'historique par : N° Pièce, Bénéficiaire, Montant, Code, Libellé..."
+                                        style="padding: 0.4rem 0.5rem 0.4rem 2rem; font-size: 0.8rem; width: 250px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1); color: white; border-radius: 4px;">
+                                </div>
+
+                                <div
+                                    style="width: 1px; height: 20px; background: rgba(255,255,255,0.2); margin: 0 0.25rem;">
+                                </div>
+
+                                <input type="date" id="saisie-history-date" class="excel-sheet tooltip-container"
+                                    title="Filtrer par date exacte"
+                                    style="padding: 0.4rem 0.5rem; font-size: 0.8rem; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1); color: white; border-radius: 4px;">
+
+                                <div
+                                    style="width: 1px; height: 20px; background: rgba(255,255,255,0.2); margin: 0 0.25rem;">
+                                </div>
+
+                                <div
+                                    style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.75rem; color: #cbd5e1; font-weight: 700; background: rgba(0,0,0,0.2); padding: 0.2rem 0.5rem; border-radius: 4px;">
+                                    <span>PÉRIODE:</span>
+                                    <input type="date" id="hist-start-date" class="excel-sheet"
+                                        style="padding: 0.2rem; font-size: 0.75rem; max-width: 100px; background: transparent; color: white; border: none; outline: none;">
+                                    <span>-</span>
+                                    <input type="date" id="hist-end-date" class="excel-sheet"
+                                        style="padding: 0.2rem; font-size: 0.75rem; max-width: 100px; background: transparent; color: white; border: none; outline: none;">
+                                </div>
+
+                                <button id="btn-print-batch" class="excel-sheet tooltip-container"
+                                    title="Imprimer la sélection ou la période"
+                                    style="padding: 0.4rem 0.75rem; background: var(--accent-chic); color: white; border: none; cursor:pointer; border-radius: 4px;">
+                                    <i class="fa-solid fa-print"></i> IMPR.
+                                </button>
+                                <button id="btn-export-excel-saisie" class="excel-sheet" title="Exporter en Excel"
+                                    style="padding: 0.4rem 0.75rem; background: #166534; color: white; border: none; cursor:pointer; border-radius: 4px;">
+                                    <i class="fa-solid fa-file-excel"></i> EXCEL
+                                </button>
+                                <button id="btn-export-pdf-saisie" class="excel-sheet" title="Exporter en PDF"
+                                    style="padding: 0.4rem 0.75rem; background: #991b1b; color: white; border: none; cursor:pointer; border-radius: 4px;">
+                                    <i class="fa-solid fa-file-pdf"></i> PDF
+                                </button>
+                                <button id="btn-delete-batch-saisie" class="excel-sheet tooltip-container"
+                                    title="Supprimer la sélection"
+                                    style="padding: 0.4rem 0.75rem; background: #ef4444; color: white; border: none; cursor:pointer; border-radius: 4px;">
+                                    <i class="fa-solid fa-trash"></i> SUPP.
+                                </button>
+                                <button id="btn-filter-imports" class="excel-sheet tooltip-container"
+                                    title="Filtrer uniquement les imports"
+                                    style="padding: 0.4rem 0.75rem; font-size: 0.8rem; font-weight: 700; background: #be185d; color: white; border: none; cursor:pointer; border-radius: 4px;">
+                                    <i class="fa-solid fa-filter"></i> IMPORTS
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="card table-container" style="max-height: 480px; overflow-y: auto;">
+                            <table class="excel-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 40px; text-align: center;"><input type="checkbox"
+                                                id="selectAllHistory">
+                                        </th>
+                                        <th>Date/Heure</th>
+                                        <th>N° Pièce</th>
+                                        <th>Code</th>
+                                        <th>Libellé / Détails</th>
+                                        <th>Bénéficiaire</th>
+                                        <th>Remettant</th>
+                                        <th>Exécutant</th>
+                                        <th>Montant</th>
+                                        <th>Mode & Réf</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="saisie-history-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+            </section>
+            <section id="tiers" class="view hidden-view">
+                <div class="excel-sheet" style="margin-bottom: 2rem;">
+                    <div class="excel-header">
+                        <h3><i class="fa-solid fa-users-gear"></i> GESTION DES TIERS</h3>
+                        <button id="btn-new-tier" class="excel-sheet"
+                            style="padding: 0.5rem 1rem; background: rgba(255,255,255,0.2); color: white; border: none; font-weight: 700; cursor: pointer;">
+                            <i class="fa-solid fa-plus"></i> NOUVEAU TIERS
+                        </button>
+                    </div>
+
+                    <!-- Add Tier Form (Initially hidden) -->
+                    <div id="add-tier-form-container" class="excel-sheet"
+                        style="display: none; margin-bottom: 2rem; border-top: none;">
+                        <div
+                            style="padding: 1rem 1.5rem; background: var(--excel-header-bg); border-bottom: 1px solid var(--excel-border); font-weight: 800; font-size: 0.8rem; color: var(--secondary-color);">
+                            DÉFINITION DU NOUVEAU TIERS
+                        </div>
+                        <form id="tier-form"
+                            style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; padding: 1.5rem;">
+                            <input type="hidden" id="tier-id">
+                            <input type="hidden" id="tier-edit-index">
+                            <div class="form-group">
+                                <label>Nom du Tiers</label>
+                                <input type="text" id="tier-name" required placeholder="Ex: Jean DUPONT">
+                            </div>
+                            <div class="form-group">
+                                <label>Type de Tiers</label>
+                                <select id="tier-type">
+                                    <option value="client">Client</option>
+                                    <option value="supplier">Fournisseur</option>
+                                    <option value="other">Autre</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Service / Destination</label>
+                                <input type="text" id="tier-service" placeholder="Ex: Matériel Informatique">
+                            </div>
+                            <div class="form-group">
+                                <label>Contact</label>
+                                <input type="text" id="tier-contact">
+                            </div>
+                            <div class="form-group"
+                                style="grid-column: span 4; margin-top: 0.5rem; padding: 1rem; background: #fffbeb; border: 1px solid #fde68a; border-radius: 4px;">
+                                <h5 style="color: var(--accent-chic); margin-bottom: 0.5rem; font-weight: 800;">
+                                    <i class="fa-solid fa-balance-scale"></i> PARAMÈTRES DE SOLDE INITIAL
+                                </h5>
+                                <p style="font-size: 0.75rem; color: #92400e; margin-bottom: 1rem;">Configurez le solde
+                                    de
+                                    départ si une dette ou créance existe déjà.</p>
+                                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem;">
+                                    <div class="form-group">
+                                        <label>Nature du solde</label>
+                                        <select id="tier-initial-type">
+                                            <option value="">Aucun solde initial</option>
+                                            <option value="debt">Dette (Je dois au tiers)</option>
+                                            <option value="credit">Créance (Le tiers me doit)</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Montant Initial</label>
+                                        <input type="number" id="tier-initial-amount" placeholder="0">
+                                    </div>
+                                    <div class="form-group" style="grid-column: span 2;">
+                                        <label>Commentaire / Référence</label>
+                                        <input type="text" id="tier-initial-label" placeholder="Ex: Report solde 2023">
+                                    </div>
+                                </div>
+                            </div>
+                            <div
+                                style="grid-column: span 4; display: flex; gap: 1rem; border-top: 1px solid var(--excel-border); padding-top: 1rem;">
+                                <button type="submit" class="btn-primary"
+                                    style="background: var(--primary-color);">ENREGISTRER
+                                    LE TIERS</button>
+                                <button type="button" id="btn-cancel-tier" class="excel-sheet"
+                                    style="padding: 0.5rem 1.5rem; border: 1px solid var(--excel-border); cursor: pointer; font-weight: 700;">ANNULER</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="excel-sheet">
+                        <div class="excel-header"
+                            style="background: var(--secondary-color); padding: 0.6rem 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+                            <h3 style="font-size: 0.85rem; color: #cbd5e1;">LISTE DES TIERS ENREGISTRÉS</h3>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <button id="btn-print-tiers" class="excel-sheet"
+                                    style="background: var(--accent-sky); color: white; border: none; padding: 0.3rem 0.75rem; font-size: 0.7rem; font-weight: 700; cursor:pointer;">
+                                    <i class="fa-solid fa-print"></i> IMPRIMER LA LISTE
+                                </button>
+                                <button id="btn-delete-selected-tiers" class="excel-sheet"
+                                    style="background: #ef4444; color: white; border: none; padding: 0.3rem 0.75rem; font-size: 0.7rem; font-weight: 700; display: none; cursor:pointer;">
+                                    <i class="fa-solid fa-trash"></i> SUPPRIMER LA SÉLECTION
+                                </button>
+                            </div>
+                        </div>
+                        <div style="max-height: 500px; overflow-y: auto;">
+                            <table class="excel-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 40px; text-align: center;"><input type="checkbox"
+                                                id="select-all-tiers"></th>
+                                        <th>DÉSIGNATION DU TIERS</th>
+                                        <th>CATÉGORIE</th>
+                                        <th>SOLDE ACTUEL</th>
+                                        <th>COORDONNÉES</th>
+                                        <th style="text-align: right;">ACTIONS</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tiers-table-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+            </section>
+
+            <section id="tier-account" class="view hidden-view">
+                <div class="section-header">
+                    <button class="btn-secondary" onclick="switchView('tiers')">
+                        <i class="fa-solid fa-arrow-left"></i> Retour aux Tiers
+                    </button>
+                    <h3 id="tier-account-title">Compte Tiers: [Nom]</h3>
+                </div>
+                <!-- summary cards for the tier -->
+                <div id="tier-account-summary" class="kpi-grid"
+                    style="grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 2rem;">
+                </div>
+                <div class="card table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Date / Heure</th>
+                                <th>Libellé / Catégorie</th>
+                                <th>Exécutant</th>
+                                <th>Entrée</th>
+                                <th>SORTIE</th>
+                                <th>solde</th>
+                                <th>Moy</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tier-account-history"></tbody>
+                    </table>
+                </div>
+            </section>
+            <section id="rh" class="view hidden-view">
+                <div class="excel-sheet" style="margin-bottom: 2rem;">
+                    <div class="excel-header">
+                        <h3><i class="fa-solid fa-user-tie"></i> GESTION ADMINISTRATIVE RH</h3>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button id="btn-new-employee" class="excel-sheet"
+                                style="padding: 0.5rem 1rem; background: rgba(255,255,255,0.2); color: white; border: none; font-weight: 700; cursor: pointer;">
+                                <i class="fa-solid fa-user-plus"></i> NOUVEL EMPLOYÉ
+                            </button>
+                            <button id="btn-delete-selected-rh" class="excel-sheet"
+                                style="padding: 0.5rem 1rem; background: #ef4444; color: white; border: none; font-weight: 700; display: none; cursor: pointer;">
+                                <i class="fa-solid fa-trash"></i> SUPPRIMER
+                            </button>
+                        </div>
+                    </div>
+
+                    <div style="max-height: 500px; overflow-y: auto;">
+                        <table class="excel-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 40px; text-align: center;"><input type="checkbox"
+                                            id="select-all-rh"></th>
+                                    <th>MATRICULE</th>
+                                    <th>NOM ET PRÉNOMS DE L'EMPLOYÉ</th>
+                                    <th>POSTE / FONCTION</th>
+                                    <th style="width: 100px;">ABRÉV.</th>
+                                    <th style="text-align: right;">ACTIONS</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rh-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+
+                <!-- Add Employee Form (Initially hidden) -->
+                <div id="add-employee-form-container" class="excel-sheet" style="display:none; margin-top:2rem;">
+                    <div
+                        style="padding: 1rem 1.5rem; background: var(--excel-header-bg); border-bottom: 1px solid var(--excel-border); font-weight: 800; font-size: 0.8rem; color: var(--secondary-color);">
+                        FICHE SIGNALÉTIQUE DE L'EMPLOYÉ
+                    </div>
+                    <form id="employee-form" style="padding: 1.5rem;">
+                        <input type="hidden" id="employee-edit-index" value="">
+                        <div class="form-group">
+                            <label>Nom complet</label>
+                            <input type="text" id="employee-name" required placeholder="Ex: Jean DUPONT">
+                        </div>
+                        <div class="form-row"
+                            style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem;">
+                            <div class="form-group">
+                                <label>Abréviation RH</label>
+                                <input type="text" id="employee-abbr" required placeholder="Ex: JD">
+                            </div>
+                            <div class="form-group">
+                                <label>Poste / Fonction</label>
+                                <input type="text" id="employee-position" required placeholder="Ex: Comptable">
+                            </div>
+                            <div class="form-group">
+                                <label>Numéro Matricule</label>
+                                <input type="text" id="employee-matricule" placeholder="Ex: RH2024-001">
+                            </div>
+                        </div>
+                        <div
+                            style="margin-top: 1.5rem; display: flex; gap: 1rem; border-top: 1px solid var(--excel-border); padding-top: 1rem;">
+                            <button type="submit" class="btn-primary"
+                                style="background: var(--primary-color);">ENREGISTRER LA
+                                FICHE</button>
+                            <button type="button" id="btn-cancel-employee" class="excel-sheet"
+                                style="padding: 0.5rem 1.5rem; border: 1px solid var(--excel-border); cursor: pointer; font-weight: 700;">ANNULER</button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <section id="acomptes-prets" class="view hidden-view">
+                <div class="rh-dashboard-container">
+
+                    <!-- 1. Stats Overview Dashboard -->
+                    <div class="rh-stats-grid">
+                        <div class="rh-stat-card primary">
+                            <span class="rh-stat-label">Encours Acomptes</span>
+                            <span id="recap-total-acomptes" class="rh-stat-value">0 FCFA</span>
+                            <i class="fa-solid fa-money-bill-transfer rh-stat-icon"></i>
+                        </div>
+                        <div class="rh-stat-card warning">
+                            <span class="rh-stat-label">Encours Prêts</span>
+                            <span id="recap-total-prets" class="rh-stat-value">0 FCFA</span>
+                            <i class="fa-solid fa-building-columns rh-stat-icon"></i>
+                        </div>
+                        <div class="rh-stat-card danger">
+                            <span class="rh-stat-label">Total Dû (Personnel)</span>
+                            <span id="recap-total-global-rh" class="rh-stat-value" style="color: #ef4444;">0 FCFA</span>
+                            <i class="fa-solid fa-hand-holding-dollar rh-stat-icon"></i>
+                        </div>
+                    </div>
+
+                    <!-- 2. Streamlined Quick Entry Form (Discrete) -->
+                    <details class="glass-card"
+                        style="padding: 1rem 1.25rem; cursor: pointer; border: 1px solid rgba(0,0,0,0.05); border-radius: 12px; margin-bottom: 1.5rem; transition: background 0.3s ease;">
+                        <summary
+                            style="font-size: 0.75rem; font-weight: 800; color: var(--text-main); display: flex; align-items: center; gap: 0.6rem; text-transform: uppercase; list-style: none; outline: none;">
+                            <i class="fa-solid fa-plus-circle"
+                                style="color: var(--primary-color); font-size: 1.1rem;"></i>
+                            Saisie Rapide Opération RH <span
+                                style="font-weight: 500; font-size:0.65rem; color:var(--text-muted); text-transform:none;">(Nouvel
+                                Acompte ou Prêt)</span>
+                            <i class="fa-solid fa-chevron-down"
+                                style="margin-left: auto; color: var(--text-muted); font-size: 0.8rem;"></i>
+                        </summary>
+                        <div style="margin-top: 1.2rem; padding-top: 1.2rem; border-top: 1px dashed rgba(0,0,0,0.1); cursor: default;"
+                            onclick="event.stopPropagation()">
+                            <form id="quick-rh-form"
+                                style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
+                                <div class="form-group" style="margin-bottom:0; flex: 2; min-width: 200px;">
+                                    <label style="font-size: 0.65rem;">Employé bénéficiaire</label>
+                                    <input type="text" id="quick-rh-employee" list="employees-list" required
+                                        placeholder="Chercher un employé..."
+                                        style="font-weight: 600; padding: 0.5rem 0.8rem; border-radius: 8px;">
+                                </div>
+                                <div class="form-group" style="margin-bottom:0; flex: 1.5; min-width: 150px;">
+                                    <label style="font-size: 0.65rem;">Type d'opération</label>
+                                    <select id="quick-rh-type"
+                                        style="font-weight: 600; padding: 0.5rem 0.8rem; border-radius: 8px;">
+                                        <option value="ACOMPTE">Acompte sur salaire</option>
+                                        <option value="PRÊT">Prêt personnel</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" style="margin-bottom:0; flex: 1.2; min-width: 120px;">
+                                    <label style="font-size: 0.65rem;">Montant nominal</label>
+                                    <input type="number" id="quick-rh-amount" required placeholder="0"
+                                        style="font-weight: 700; color: #ef4444; padding: 0.5rem 0.8rem; border-radius: 8px;">
+                                </div>
+                                <div class="form-group" style="margin-bottom:0; flex: 1.2; min-width: 120px;">
+                                    <label id="quick-rh-month-label" style="font-size: 0.65rem;">Mois de
+                                        déduction</label>
+                                    <input type="text" id="quick-rh-month" placeholder="Ex: mars/2026"
+                                        style="font-weight: 600; padding: 0.5rem 0.8rem; border-radius: 8px;">
+                                </div>
+                                <div class="form-group loan-only"
+                                    style="margin-bottom:0; flex: 1; min-width: 100px; display:none;">
+                                    <label style="font-size: 0.65rem;">Durée (Mois)</label>
+                                    <input type="number" id="quick-rh-duration" placeholder="Ex: 6" min="1"
+                                        style="font-weight: 600; padding: 0.5rem 0.8rem; border-radius: 8px;">
+                                </div>
+                                <div class="form-group loan-only"
+                                    style="margin-bottom:0; flex: 1.2; min-width: 110px; display:none;">
+                                    <label style="font-size: 0.65rem;">Mensualité</label>
+                                    <input type="number" id="quick-rh-monthly-deduction" placeholder="Montant/Mois"
+                                        min="1"
+                                        style="font-weight: 600; padding: 0.5rem 0.8rem; border-radius: 8px; color: #8b5cf6;">
+                                </div>
+                                <button type="submit" class="btn-primary hover-glow"
+                                    style="height: 38px; padding: 0 1.5rem; font-size: 0.75rem; border-radius: 8px; font-weight: 700;">
+                                    <i class="fa-solid fa-save"></i> ENREGISTRER
+                                </button>
+                            </form>
+                        </div>
+                    </details>
+
+                    <!-- 3. Unified Control Bar (Search + Tabs + Filters + Print) -->
+                    <div class="rh-control-bar">
+                        <div class="finance-tabs" style="margin-bottom: 0;">
+                            <button class="finance-tab active" data-mode="ALL">
+                                <i class="fa-solid fa-layer-group"></i> GLOBAL
+                            </button>
+                            <button class="finance-tab" data-mode="ACOMPTE">
+                                <i class="fa-solid fa-money-bill-transfer"></i> ACOMPTES
+                            </button>
+                            <button class="finance-tab" data-mode="PRÊT">
+                                <i class="fa-solid fa-building-columns"></i> PRÊTS
+                            </button>
+                        </div>
+
+                        <div class="rh-search-wrapper">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <input type="text" id="finance-search-live" class="rh-search-input"
+                                placeholder="Filtrer les employés...">
+                        </div>
+
+                        <div class="rh-actions-group">
+                            <div class="form-group" style="margin-bottom: 0; min-width: 150px;">
+                                <input type="month" id="finance-month-filter" class="form-control"
+                                    style="font-size: 0.75rem;">
+                            </div>
+                            <div style="height: 24px; width: 1px; background: #e2e8f0;"></div>
+                            <button id="btn-print-finance-list" class="btn-primary hover-glow"
+                                title="Imprimer résumé global"
+                                style="height: 36px; width: 36px; padding: 0; border-radius: 8px; background: var(--bg-sidebar);">
+                                <i class="fa-solid fa-print"></i>
+                            </button>
+                            <button id="btn-print-finance-cards" class="btn-primary hover-glow"
+                                title="Imprimer fiches individuelles"
+                                style="height: 36px; width: 36px; padding: 0; border-radius: 8px; background: #6366f1;">
+                                <i class="fa-solid fa-id-card"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 4. Data Listing Area -->
+                    <div class="excel-sheet"
+                        style="border: none; box-shadow: 0 4px 20px rgba(0,0,0,0.05); border-radius: 12px; overflow: hidden;">
+                        <div class="excel-header"
+                            style="background: #f8fafc; padding: 1rem 1.5rem; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center;">
+                            <h3
+                                style="font-size: 0.8rem; color: var(--secondary-color); font-weight: 800; text-transform: uppercase;">
+                                Détail des Encours par Personnel</h3>
+                            <span id="current-filter-label" class="badge"
+                                style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary-color);">VUE:
+                                TOUT</span>
+                        </div>
+                        <div style="max-height: 500px; overflow-y: auto; background: white;">
+                            <table id="personnel-main-table" class="excel-table">
+                                <thead style="position: sticky; top: 0; z-index: 10;">
+                                    <tr>
+                                        <th style="width:50px;"></th>
+                                        <th>NOM DE L'EMPLOYÉ</th>
+                                        <th>POSTE / FONCTION</th>
+                                        <th style="text-align: right;">CUMUL ACOMPTES</th>
+                                        <th style="text-align: right;">PRÊTS EN COURS</th>
+                                        <th style="text-align: right;">TOTAL DÛ</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="personnel-table-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <datalist id="employees-list"></datalist>
+            </section>
+
+            <section id="rapports" class="view hidden-view">
+                <div class="section-header">
+                    <h3>Génération de Rapports</h3>
+                </div>
+                <div class="excel-sheet" style="margin-bottom: 2rem; border-top: none;">
+                    <div style="padding: 1.5rem; background: #f8fafc;">
+                        <h5
+                            style="margin-bottom: 1rem; font-size: 0.75rem; font-weight: 800; color: var(--secondary-color); text-transform: uppercase;">
+                            <i class="fa-solid fa-chart-pie"></i> Paramètres du Rapport
+                        </h5>
+                        <div
+                            style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; align-items: flex-end;">
+                            <div class="form-group">
+                                <label>Date Début</label>
+                                <input type="date" id="rep-sart-date" class="excel-sheet"
+                                    style="border: 1px solid var(--excel-border); outline: none;">
+                            </div>
+                            <div class="form-group">
+                                <label>Date Fin</label>
+                                <input type="date" id="rep-end-date" class="excel-sheet"
+                                    style="border: 1px solid var(--excel-border); outline: none;">
+                            </div>
+                            <div class="form-group">
+                                <label>Tiers (Optionnel)</label>
+                                <input type="text" id="rep-partner" list="partners-list" placeholder="Rechercher..."
+                                    class="excel-sheet" style="border: 1px solid var(--excel-border); outline: none;">
+                            </div>
+                            <button id="btn-generate-report" class="btn-primary"
+                                style="background: var(--primary-color); height: 38px; font-weight: 700;">
+                                <i class="fa-solid fa-file-contract"></i> GÉNÉRER L'ÉTAT
+                            </button>
+                        </div>
+                    </div>
+
+                    <div style="padding: 1.5rem; background: white; border-top: 1px solid var(--excel-border);">
+                        <h5
+                            style="margin-bottom: 1rem; font-size: 0.75rem; font-weight: 800; color: #b91c1c; text-transform: uppercase;">
+                            <i class="fa-solid fa-file-export"></i> EXPORTATION RAPIDE (MENSUEL)
+                        </h5>
+                        <div
+                            style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; align-items: flex-end;">
+                            <div class="form-group">
+                                <label>Mois cible</label>
+                                <select id="exp-month" class="excel-sheet">
+                                    <option value="0">Janvier</option>
+                                    <option value="1">Février</option>
+                                    <option value="2">Mars</option>
+                                    <option value="3">Avril</option>
+                                    <option value="4">Mai</option>
+                                    <option value="5">Juin</option>
+                                    <option value="6">Juillet</option>
+                                    <option value="7">Août</option>
+                                    <option value="8">Septembre</option>
+                                    <option value="9">Octobre</option>
+                                    <option value="10">Novembre</option>
+                                    <option value="11">Décembre</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Année fiscale</label>
+                                <input type="number" id="exp-yr" value="2026" class="excel-sheet">
+                            </div>
+                            <div style="grid-column: span 2; display: flex; gap: 0.5rem;">
+                                <button id="btn-export-excel-month" class="excel-sheet"
+                                    style="flex: 1; padding: 0.6rem; background: #166534; color: white; border: none; font-weight: 700; cursor: pointer; border-radius: 4px;">
+                                    <i class="fa-solid fa-file-excel"></i> FORMAT EXCEL
+                                </button>
+                                <button id="btn-export-pdf-month" class="excel-sheet"
+                                    style="flex: 1; padding: 0.6rem; background: #991b1b; color: white; border: none; font-weight: 700; cursor: pointer; border-radius: 4px;">
+                                    <i class="fa-solid fa-file-pdf"></i> FORMAT PDF
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
+                <div id="report-result-container" class="excel-sheet" style="display:none;">
+                    <div class="excel-header" style="background: var(--secondary-color);">
+                        <h3><i class="fa-solid fa-table-list"></i> RÉSULTATS DE L'ÉTAT GÉNÉRÉ</h3>
+                        <button id="btn-print-report" class="excel-sheet"
+                            style="padding: 0.4rem 1rem; background: var(--accent-chic); color: white; border: none; font-weight: 700; cursor: pointer;">
+                            <i class="fa-solid fa-print"></i> IMPRIMER CET ÉTAT
+                        </button>
+                    </div>
+                    <div style="max-height: 600px; overflow-y: auto;">
+                        <table class="excel-table">
+                            <thead>
+                                <tr id="report-table-header"></tr>
+                            </thead>
+                            <tbody id="report-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section id="stats" class="view hidden-view">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h3 style="margin: 0;">Statistiques Détaillées</h3>
+                    <button id="btn-print-stats" class="btn-primary"
+                        style="background: var(--accent-sky); border: none; font-weight: 700;">
+                        <i class="fa-solid fa-print"></i> IMPRIMER LES STATS
+                    </button>
+                </div>
+                <div id="stats-container"></div>
+            </section>
+            <section id="societe" class="view hidden-view">
+                <div class="excel-sheet" style="margin-bottom: 2rem;">
+                    <div class="excel-header">
+                        <h3><i class="fa-solid fa-building-user"></i> OPÉRATIONS SOCIÉTÉ</h3>
+                    </div>
+                    <div
+                        style="padding: 1rem 1.5rem; background: var(--excel-header-bg); border-bottom: 1px solid var(--excel-border); font-weight: 800; font-size: 0.8rem; color: var(--secondary-color);">
+                        NOUVELLE SAISIE DIRECTE SOCIÉTÉ
+                    </div>
+                    <form id="societe-form" class="compact-form"
+                        style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; padding: 1.5rem;">
+                        <div class="form-group">
+                            <label>Date valeur</label>
+                            <input type="date" id="sc-date" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Nature</label>
+                            <select id="sc-ty" class="excel-sheet">
+                                <option value="income">Entrée (Encaissement)</option>
+                                <option value="expense">SORTIE (Décaissement)</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="grid-column: span 2;">
+                            <label>Libellé / Motif de l'opération</label>
+                            <input type="text" id="sc-details" required placeholder="Ex: Règlement Facture SEL">
+                        </div>
+                        <div class="form-group">
+                            <label>Montant nominal</label>
+                            <input type="number" id="sc-amount" required placeholder="0">
+                        </div>
+                        <div class="form-group">
+                            <label>Mode de règlement</label>
+                            <select id="sc-mode" class="excel-sheet">
+                                <option value="cash">💵 Espèce</option>
+                                <option value="bank">🏦 Banque</option>
+                                <option value="wave">🌊 Wave</option>
+
+                            </select>
+                        </div>
+                        <div class="form-group" style="grid-column: span 2; display:flex; align-items: flex-end;">
+                            <button type="submit" class="btn-primary" style="width: 100%; margin-top: 0;">Enregistrer
+                                société</button>
+                        </div>
+                    </form>
+                    <hr style="margin: 2rem 0; border: 0; border-top: 1px solid var(--border-color);">
+                    <h4>Historique société</h4>
+                    <div class="card table-container" style="max-height: 400px; overflow-y: auto;">
+                        <table class="excel-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Détails</th>
+                                    <th>Ty</th>
+                                    <th>Montant</th>
+                                    <th>Mode</th>
+                                </tr>
+                            </thead>
+                            <tbody id="societe-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+            <section id="codes" class="view hidden-view">
+                <div class="excel-sheet" style="margin-bottom: 2rem;">
+                    <div class="excel-header">
+                        <h3><i class="fa-solid fa-list-check"></i> GESTION DES CODES COMPTABLES</h3>
+                        <div style="display: flex; gap: 0.75rem;">
+                            <button id="btn-delete-selected-codes" class="excel-sheet"
+                                style="padding: 0.5rem 1rem; background: var(--accent-danger); color: white; border: none; font-weight: 700; font-size: 0.8rem; cursor: pointer; display: none;">
+                                <i class="fa-solid fa-trash"></i> SUPPRIMER SÉLEC.
+                            </button>
+                            <button id="btn-new-code" class="excel-sheet"
+                                style="padding: 0.5rem 1.2rem; background: var(--accent-chic); color: white; border: none; font-weight: 700; font-size: 0.8rem; cursor: pointer;">
+                                <i class="fa-solid fa-plus"></i> NOUVEAU CODE
+                            </button>
+                        </div>
+                    </div>
+
+                    <div
+                        style="padding: 0.75rem 1.5rem; background: var(--excel-header-bg); border-bottom: 1px solid var(--excel-border); font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">
+                        DÉFINITION DES CATÉGORIES ET ANALYTIQUES DE CAISSE
+                    </div>
+
+                    <!-- Add Code Form -->
+                    <div id="add-code-form-container"
+                        style="display:none; padding: 1.5rem; border-bottom: 1px solid var(--excel-border); background: #f8fafc;">
+                        <h4 style="margin-bottom: 1rem; font-size: 0.9rem; color: var(--primary-color);">CRÉER UNE
+                            NOUVELLE
+                            CATÉGORIE</h4>
+                        <form id="code-form"
+                            style="display: grid; grid-template-columns: 1fr 2fr 1.5fr auto; gap: 1rem; align-items: flex-end;">
+                            <div class="form-group" style="margin:0;">
+                                <label>Abréviation</label>
+                                <input type="text" id="code-short" required placeholder="Ex: TR">
+                            </div>
+                            <div class="form-group" style="margin:0;">
+                                <label>Libellé complet</label>
+                                <input type="text" id="code-name" required placeholder="Ex: TRANSPORT...">
+                            </div>
+                            <div class="form-group" style="margin:0;">
+                                <label>Nature flux</label>
+                                <select id="code-default-type">
+                                    <option value="expense" selected>📉 SORTIE (Dépense)</option>
+                                    <option value="income">📈 Entrée (Recette)</option>
+                                    <option value="mixed">🔄 Mixte</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin:0;">
+                                <label>Type Bénéficiaire</label>
+                                <select id="code-beneficiary-type">
+                                    <option value="tiers">Tiers (Partenaire)</option>
+                                    <option value="employee">Employé (RH)</option>
+                                    <option value="mixed">Mixte (Les deux)</option>
+                                </select>
+                            </div>
+                            <div
+                                style="grid-column: 1 / -1; display: flex; gap: 1.5rem; flex-wrap: wrap; padding: 0.6rem 0.8rem; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 4px; align-items: center;">
+                                <span style="font-size: 0.7rem; font-weight: 800; color: #0369a1;">CHAMPS à AFFICHER
+                                    :</span>
+                                <label
+                                    style="display:flex; align-items:center; gap:0.4rem; font-size:0.75rem; cursor:pointer; font-weight:600;"><input
+                                        type="checkbox" id="code-show-remettant" checked> Remettant</label>
+                                <label
+                                    style="display:flex; align-items:center; gap:0.4rem; font-size:0.75rem; cursor:pointer; font-weight:600;"><input
+                                        type="checkbox" id="code-show-executor" checked> Exécutant</label>
+                                <label
+                                    style="display:flex; align-items:center; gap:0.4rem; font-size:0.75rem; cursor:pointer; font-weight:600;"><input
+                                        type="checkbox" id="code-show-beneficiary"> Bénéficiaire</label>
+                                <label
+                                    style="display:flex; align-items:center; gap:0.4rem; font-size:0.75rem; cursor:pointer; font-weight:600;"><input
+                                        type="checkbox" id="code-show-charge"> Charge (Tiers)</label>
+                            </div>
+                            <div style="display: flex; gap: 0.5rem; align-items: flex-end;">
+                                <button type="submit" class="btn-primary"
+                                    style="background: var(--primary-color); height: 38px;">VALIDER</button>
+                                <button type="button" id="btn-cancel-code" class="excel-sheet"
+                                    style="padding: 0 1rem; border: 1px solid var(--excel-border); background: white; cursor: pointer;">ANNULER</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Edit Code Form -->
+                    <div id="edit-code-form-container"
+                        style="display:none; padding: 1.5rem; border-bottom: 1px solid var(--excel-border); background: #fffbeb; border-left: 4px solid var(--accent-chic);">
+                        <h4 style="margin-bottom: 1rem; font-size: 0.9rem; color: var(--accent-chic);">MODIFIER LA
+                            CATÉGORIE
+                        </h4>
+                        <form id="edit-code-form"
+                            style="display: grid; grid-template-columns: 1fr 2fr 1.5fr auto; gap: 1rem; align-items: flex-end;">
+                            <input type="hidden" id="edit-code-index">
+                            <div class="form-group" style="margin:0;">
+                                <label>Abréviation</label>
+                                <input type="text" id="edit-code-short" required>
+                            </div>
+                            <div class="form-group" style="margin:0;">
+                                <label>Libellé complet</label>
+                                <input type="text" id="edit-code-name" required>
+                            </div>
+                            <div class="form-group" style="margin:0;">
+                                <label>Nature flux</label>
+                                <select id="edit-code-type">
+                                    <option value="expense">📉 SORTIE</option>
+                                    <option value="income">📈 Entrée</option>
+                                    <option value="mixed">🔄 Mixte</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin:0;">
+                                <label>Type Bénéficiaire</label>
+                                <select id="edit-code-beneficiary-type">
+                                    <option value="tiers">Tiers (Partenaire)</option>
+                                    <option value="employee">Employé (RH)</option>
+                                    <option value="mixed">Mixte (Les deux)</option>
+                                </select>
+                            </div>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <button type="submit" class="btn-primary"
+                                    style="background: var(--accent-chic); height: 38px; border-color: var(--accent-chic);">MAJ</button>
+                                <button type="button" id="btn-cancel-edit-code" class="excel-sheet"
+                                    style="padding: 0 1rem; border: 1px solid var(--excel-border); background: white; cursor: pointer;">ANNULER</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div style="max-height: 500px; overflow-y: auto;">
+                        <table class="excel-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 40px;"><input type="checkbox" id="select-all-codes"></th>
+                                    <th>ABRÉVIATION</th>
+                                    <th>DÉSIGNATION ANALYTIQUE</th>
+                                    <th style="text-align: right;">ACTIONS</th>
+                                </tr>
+                            </thead>
+                            <tbody id="codes-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section id="modeles" class="view hidden-view">
+                <div class="excel-sheet" style="margin-bottom: 2rem;">
+                    <div class="excel-header">
+                        <h3><i class="fa-solid fa-wand-magic"></i> MODÈLES DE SAISIE RAPIDE</h3>
+                        <div style="display: flex; gap: 0.75rem;">
+                            <button id="btn-delete-selected-models" class="excel-sheet"
+                                style="padding: 0.5rem 1rem; background: var(--accent-danger); color: white; border: none; font-weight: 700; font-size: 0.8rem; cursor: pointer; display: none;">
+                                <i class="fa-solid fa-trash"></i> SUPPRIMER
+                            </button>
+                            <button id="btn-new-model" class="excel-sheet"
+                                style="padding: 0.5rem 1.2rem; background: var(--accent-chic); color: white; border: none; font-weight: 700; font-size: 0.8rem; cursor: pointer;">
+                                <i class="fa-solid fa-plus-circle"></i> NOUVEAU MODÈLE
+                            </button>
+                        </div>
+                    </div>
+
+                    <div
+                        style="padding: 0.75rem 1.5rem; background: var(--excel-header-bg); border-bottom: 1px solid var(--excel-border); font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">
+                        AUTOMATISATION DES ÉCRITURES RÉCURRENTES ET PRÉDEFINIES
+                    </div>
+
+                    <!-- Add/Edit Model Form -->
+                    <div id="add-model-form-container"
+                        style="display:none; padding: 1.5rem; background: #f8fafc; border-bottom: 1px solid var(--excel-border);">
+                        <h4 id="model-form-title"
+                            style="margin-bottom: 1.5rem; font-size: 0.9rem; color: var(--primary-color);">
+                            DÉCONSTRUCTION DU
+                            MODÈLE</h4>
+                        <form id="model-form">
+                            <input type="hidden" id="model-edit-index" value="">
+                            <div style="display:grid; grid-template-columns: 2fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                                <div class="form-group">
+                                    <label>Nom du Modèle (Favori)</label>
+                                    <input type="text" id="model-name" required placeholder="Ex: Paiement Loyer Siège">
+                                </div>
+                                <div class="form-group">
+                                    <label>Sens de l'opération</label>
+                                    <select id="model-type">
+                                        <option value="expense">📉 SORTIE de fonds</option>
+                                        <option value="income">📈 Entrée de fonds</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div style="display:grid; grid-template-columns: 1fr 2fr; gap: 1rem; margin-bottom: 1rem;">
+                                <div class="form-group">
+                                    <label>Code Analytique</label>
+                                    <input type="text" id="model-code" list="codes-datalist" placeholder="Ex: LO">
+                                    <input type="hidden" id="model-category">
+                                </div>
+                                <div class="form-group">
+                                    <label>Libellé d'écriture automatique</label>
+                                    <input type="text" id="model-details"
+                                        placeholder="Texte qui sera saisi par défaut...">
+                                </div>
+                            </div>
+                            <div class="form-row" style="margin-bottom: 1rem;">
+                                <div class="form-group">
+                                    <label>Montant standard (Optionnel)</label>
+                                    <input type="number" id="model-amount" placeholder="0.00">
+                                </div>
+                            </div>
+                            <div
+                                style="display:flex; gap: 2rem; margin-bottom: 1.5rem; padding: 1rem; background: white; border: 1px solid var(--excel-border); border-radius: 4px;">
+                                <label
+                                    style="display:flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.8rem; font-weight: 600;">
+                                    <input type="checkbox" id="model-require-tier" style="width: 16px; height: 16px;">
+                                    FORCER
+                                    TIERS
+                                </label>
+                                <label
+                                    style="display:flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.8rem; font-weight: 600; color: var(--primary-color);">
+                                    <input type="checkbox" id="model-is-pinned" style="width: 16px; height: 16px;">
+                                    ACCÈS RAPIDE
+                                    📌
+                                </label>
+                                <label
+                                    style="display:flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.8rem; font-weight: 600; color: #0369a1;">
+                                    <input type="checkbox" id="model-is-simple" style="width: 16px; height: 16px;"> MODE
+                                    SIMPLE
+                                    ✨
+                                </label>
+                            </div>
+                            <div
+                                style="display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; padding: 1rem; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 4px;">
+                                <span
+                                    style="font-size: 0.75rem; font-weight: 800; color: #0369a1; width: 100%; margin-bottom: 0.5rem;">CHAMPS
+                                    À AFFICHER :</span>
+                                <label
+                                    style="display:flex; align-items:center; gap:0.4rem; font-size:0.75rem; cursor:pointer;"><input
+                                        type="checkbox" id="model-show-remettant" checked> Remettant</label>
+                                <label
+                                    style="display:flex; align-items:center; gap:0.4rem; font-size:0.75rem; cursor:pointer;"><input
+                                        type="checkbox" id="model-show-executor" checked> Exécutant</label>
+                                <label
+                                    style="display:flex; align-items:center; gap:0.4rem; font-size:0.75rem; cursor:pointer;"><input
+                                        type="checkbox" id="model-show-beneficiary" checked> Bénéficiaire</label>
+                                <label
+                                    style="display:flex; align-items:center; gap:0.4rem; font-size:0.75rem; cursor:pointer;"><input
+                                        type="checkbox" id="model-show-charge"> Charge (Tiers)</label>
+                            </div>
+                            <div style="display: flex; gap: 1rem; border-top: 1px solid #e2e8f0; padding-top: 1rem;">
+                                <button type="submit" class="btn-primary"
+                                    style="background: var(--primary-color); padding: 0.8rem 2rem;">ENREGISTRER LE
+                                    MODÈLE</button>
+                                <button type="button" id="btn-cancel-model" class="excel-sheet"
+                                    style="padding: 0 1.5rem; border: 1px solid var(--excel-border); background: white; cursor: pointer;">ANNULER</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div style="max-height: 500px; overflow-y: auto;">
+                        <table class="excel-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 40px;"><input type="checkbox" id="select-all-models"></th>
+                                    <th>INTITULÉ DU MODÈLE</th>
+                                    <th>CODE</th>
+                                    <th>SENS</th>
+                                    <th>TIERS</th>
+                                    <th>ÉPINGLÉ</th>
+                                    <th style="text-align: right;">ACTIONS</th>
+                                </tr>
+                            </thead>
+                            <tbody id="models-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section id="import" class="view hidden-view">
+                <div class="excel-sheet" style="margin-bottom: 2rem;">
+                    <div class="excel-header" style="background: #701a75; border-bottom-color: #4a044e;">
+                        <h3><i class="fa-solid fa-wand-magic-sparkles"></i> IMPORTATION MAGIQUE (IA)</h3>
+                        <button type="button" id="btn-download-template" class="excel-sheet"
+                            style="padding: 0.5rem 1.25rem; background: #10b981; color: white; border: none; font-weight: 700; font-size: 0.8rem; cursor: pointer;">
+                            <i class="fa-solid fa-file-excel"></i> MODÈLE EXCEL
+                        </button>
+                    </div>
+
+                    <div
+                        style="padding: 1rem 1.5rem; background: #fdf4ff; border-bottom: 1px solid #f5d0fe; color: #701a75; font-size: 0.8rem; font-weight: 600;">
+                        ANALYSE SÉMANTIQUE ET EXTRACTION AUTOMATIQUE DE DONNÉES EN VRAC
+                    </div>
+
+                    <div style="padding: 1.5rem;">
+                        <div style="display:grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+                            <div class="form-group">
+                                <label style="color: #701a75; font-weight: 800;">ZONE DE SAISIE LIBRE (TEXTE)</label>
+                                <textarea id="magic-input" rows="10" placeholder="Exemple: 
+12/02 - Transport 5000 - Jean
+MTN 10000 Ar le 14 pour Achat Bureau..."
+                                    style="width: 100%; border: 2px solid #f5d0fe; border-radius: 4px; padding: 1rem; font-family: 'Consolas', monospace; font-size: 0.9rem; outline: none;"></textarea>
+                            </div>
+                            <div id="magic-drop-zone"
+                                style="border: 3px dashed #f5d0fe; border-radius: 4px; background: #faf5ff; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; min-height: 250px;">
+                                <i class="fa-solid fa-cloud-arrow-up"
+                                    style="font-size: 3rem; color: #a21caf; margin-bottom: 1rem;"></i>
+                                <div
+                                    style="text-align: center; color: #701a75; font-size: 0.8rem; font-weight: 800; padding: 0 1rem;">
+                                    GLISSER UN FICHIER<br>
+                                    <span style="font-size: 0.7rem; color: #a21caf;">(EXCEL, IMAGE, PDF)</span>
+                                </div>
+                                <input type="file" id="magic-file-input" accept=".xls,.xlsx,.pdf,image/*"
+                                    style="display:none;">
+                            </div>
+                        </div>
+
+                        <div style="display:flex; gap: 1rem;">
+                            <button type="button" id="btn-analyze-magic" class="btn-primary"
+                                style="background: #701a75; flex: 1; padding: 1rem; font-size: 1rem; font-weight: 800;">
+                                <i class="fa-solid fa-brain"></i> DÉMARRER L'ANALYSE INTELLIGENTE
+                            </button>
+                            <button type="button" id="btn-clear-magic" class="excel-sheet"
+                                style="padding: 0 2rem; border: 1px solid #f5d0fe; background: white; color: #701a75; cursor: pointer; font-weight: 700;">
+                                VIDER
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Magic Review Overlay Refactored -->
+                <div id="magic-overlay" class="magic-overlay"
+                    style="background: rgba(112, 26, 117, 0.98); backdrop-filter: blur(5px);">
+                    <div class="magic-overlay-content excel-sheet"
+                        style="width: 95%; height: 90vh; display: flex; flex-direction: column;">
+                        <div class="excel-header" style="background: #701a75;">
+                            <h3><i class="fa-solid fa-magnifying-glass-chart"></i> RÉVISION DES DONNÉES EXTRAITES</h3>
+                            <button type="button" id="btn-close-overlay"
+                                style="background: transparent; border: none; color: white; font-size: 1.5rem; cursor: pointer;">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+
+                        <div style="padding: 1.5rem; flex: 1; overflow-y: auto; background: #fdf4ff;">
+                            <div
+                                style="background: #fae8ff; border: 1px solid #f5d0fe; padding: 1rem; margin-bottom: 1.5rem; border-radius: 4px; color: #701a75; font-size: 0.85rem; font-weight: 600;">
+                                <i class="fa-solid fa-info-circle"></i> Les éléments en <span
+                                    style="background: #fdf2f8; padding: 2px 4px; border: 1px solid #f9a8d4; border-radius: 3px; color: #be185d;">rose</span>
+                                sont modifiables. Les nouveaux Tiers/Codes seront créés automatiquement lors de la
+                                validation.
+                            </div>
+
+                            <table class="excel-table magic-table-xl" style="background: white;">
+                                <thead style="position: sticky; top: 0; z-index: 10;">
+                                    <tr>
+                                        <th style="width: 40px;"><input type="checkbox" id="select-all-magic"></th>
+                                        <th style="width: 120px;">DATE</th>
+                                        <th style="width: 110px;">FLUX</th>
+                                        <th style="width: 140px;">RÉF. CODE</th>
+                                        <th>LIBELLÉ DE L'OPÉRATION</th>
+                                        <th style="width: 130px;">MONTANT</th>
+                                        <th style="width: 180px;">TIERS</th>
+                                        <th style="width: 180px;">EMPLOYÉ</th>
+                                        <th style="width: 50px;"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="magic-review-body"></tbody>
+                            </table>
+                        </div>
+
+                        <div
+                            style="padding: 1.5rem; display: flex; justify-content: space-between; align-items: center; background: white; border-top: 2px solid #f5d0fe;">
+                            <div
+                                style="display:flex; align-items: center; gap: 0.75rem; color: #701a75; font-weight: 600; font-size: 0.8rem;">
+                                <i class="fa-solid fa-check-double"></i> TOUTES LES LIGNES VALIDES SERONT MARQUÉES
+                                [IMPORT]
+                            </div>
+                            <div style="display:flex; gap: 1rem;">
+                                <button type="button" id="btn-delete-selected-magic" class="excel-sheet"
+                                    style="padding: 0.8rem 1.5rem; background: #be185d; color: white; border: none; font-weight: 700; display: none;">
+                                    <i class="fa-solid fa-trash"></i> RETIRER SÉLECTION
+                                </button>
+                                <button type="button" id="btn-cancel-import" class="excel-sheet"
+                                    style="padding: 0.8rem 1.5rem; border: 1px solid #f5d0fe; background: white; color: #701a75; cursor: pointer; font-weight: 700;">
+                                    ANNULER
+                                </button>
+                                <button type="button" id="btn-confirm-import" class="btn-primary"
+                                    style="background: #10b981; padding: 0.8rem 2.5rem; font-weight: 800; font-size: 0.95rem;">
+                                    VALIDER ET ENREGISTRER 🚀
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- History stays below -->
+                <div class="excel-sheet">
+                    <div class="excel-header" style="background: var(--secondary-color);">
+                        <h3><i class="fa-solid fa-clock-rotate-left"></i> LOG DES IMPORTATIONS PASSÉES</h3>
+                        <button id="btn-purge-imports" class="excel-sheet"
+                            style="padding: 0.4rem 1rem; background: #fee2e2; color: #ef4444; border: 1px solid #fca5a5; font-weight: 800; font-size: 0.75rem; cursor: pointer;">
+                            <i class="fa-solid fa-trash-can"></i> PURGER HISTORIQUE
+                        </button>
+                    </div>
+                    <div style="max-height: 400px; overflow-y: auto;">
+                        <table class="excel-table">
+                            <thead>
+                                <tr>
+                                    <th>HORODATAGE</th>
+                                    <th>AGENT</th>
+                                    <th>LIGNES</th>
+                                    <th>∑ ENTRÉES</th>
+                                    <th>∑ SORTIES</th>
+                                    <th>SOLDE BATCH</th>
+                                    <th style="text-align: right;">ACTIONS</th>
+                                </tr>
+                            </thead>
+                            <tbody id="import-history-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section id="agents" class="view hidden-view">
+                <div class="excel-sheet">
+                    <div class="excel-header">
+                        <h3><i class="fa-solid fa-users-gear"></i> ADMINISTRATION DES ACCÈS AGENTS</h3>
+                        <div style="display: flex; gap: 0.75rem;">
+                            <button id="btn-print-agents" class="excel-sheet"
+                                style="padding: 0.5rem 1rem; background: var(--accent-sky); color: white; border: none; font-weight: 700; font-size: 0.8rem; cursor: pointer;">
+                                <i class="fa-solid fa-print"></i> IMPRIMER
+                            </button>
+                            <button id="btn-delete-selected-agents" class="excel-sheet"
+                                style="padding: 0.5rem 1rem; background: var(--accent-danger); color: white; border: none; font-weight: 700; font-size: 0.8rem; cursor: pointer; display: none;">
+                                <i class="fa-solid fa-trash"></i> SUPPRIMER SÉLEC.
+                            </button>
+                            <button id="btn-new-agent" class="excel-sheet"
+                                style="padding: 0.5rem 1.2rem; background: var(--accent-chic); color: white; border: none; font-weight: 700; font-size: 0.8rem; cursor: pointer;">
+                                <i class="fa-solid fa-plus-circle"></i> NOUVEL AGENT
+                            </button>
+                        </div>
+                    </div>
+
+                    <div
+                        style="padding: 0.75rem 1.5rem; background: var(--excel-header-bg); border-bottom: 1px solid var(--excel-border); font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">
+                        CONTRÔLE DES RÔLES ET DES PERMISSIONS DE CAISSE
+                    </div>
+
+                    <!-- Add Agent Form -->
+                    <div id="add-agent-form-container"
+                        style="display:none; padding: 1.5rem; background: #f8fafc; border-bottom: 1px solid var(--excel-border);">
+                        <h4
+                            style="margin-bottom: 1.5rem; font-size: 0.9rem; color: var(--primary-color); border-bottom: 1px solid #e2e8f0; padding-bottom: 0.5rem;">
+                            DÉTAILS DU COMPTE UTILISATEUR</h4>
+                        <form id="agent-form" style="display:grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem;">
+                            <input type="hidden" id="agent-edit-index" value="">
+                            <div class="form-group" style="grid-column: span 2;">
+                                <label>Nom complet de l'Agent</label>
+                                <input type="text" id="agent-name" required placeholder="Ex: Marc Lavoine">
+                            </div>
+                            <div class="form-group">
+                                <label>Identifiant de connexion (Login)</label>
+                                <input type="text" id="agent-login" required placeholder="Ex: marc_caisse">
+                            </div>
+                            <div class="form-group">
+                                <label>Mot de passe / PIN Code</label>
+                                <input type="password" id="agent-code" required placeholder="****">
+                            </div>
+                            <div class="form-group">
+                                <label>Rôle attribué</label>
+                                <select id="agent-role">
+                                    <option value="admin">🏦 Administrateur</option>
+                                    <option value="user">💰 Caissier Standard</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Périmètre d'accès</label>
+                                <select id="agent-access">
+                                    <option value="secondary">Caisse secondaire uniquement</option>
+                                    <option value="general">Caisse Générale uniquement</option>
+                                    <option value="both">Accès Inter-caisses (Les deux)</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="grid-column: span 2;">
+                                <label
+                                    style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer; font-weight: 600; font-size: 0.8rem; color: var(--secondary-color);">
+                                    <input type="checkbox" id="agent-view-all-balances"
+                                        style="width: 18px; height: 18px;">
+                                    Autoriser la vue globale des soldes au tableau de bord
+                                </label>
+                            </div>
+                            <div
+                                style="grid-column: span 2; display: flex; gap: 1rem; border-top: 1px solid #e2e8f0; padding-top: 1.5rem;">
+                                <button type="submit" class="btn-primary"
+                                    style="background: var(--primary-color); padding: 0.8rem 2rem;">ENREGISTRER
+                                    L'AGENT</button>
+                                <button type="button" id="btn-cancel-agent" class="excel-sheet"
+                                    style="padding: 0 1.5rem; border: 1px solid var(--excel-border); background: white; cursor: pointer;">ANNULER</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div style="max-height: 500px; overflow-y: auto;">
+                        <table class="excel-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 40px;"><input type="checkbox" id="select-all-agents"></th>
+                                    <th>IDENTITÉ</th>
+                                    <th>RÔLE SYSTÈME</th>
+                                    <th>AFFECTATION CAISSE</th>
+                                    <th style="text-align: right;">ACTIONS</th>
+                                </tr>
+                            </thead>
+                            <tbody id="agents-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section id="parametres" class="view hidden-view">
+                <div class="excel-sheet" style="margin-bottom: 2rem;">
+                    <div class="excel-header">
+                        <h3><i class="fa-solid fa-gears"></i> CONFIGURATION DU SYSTÈME</h3>
+                    </div>
+
+                    <div
+                        style="padding: 0.75rem 1.5rem; background: var(--excel-header-bg); border-bottom: 1px solid var(--excel-border); font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">
+                        IDENTITÉ VISUELLE ET PARAMÈTRES DE LA SOCIÉTÉ
+                    </div>
+
+                    <div style="padding: 2rem;">
+                        <form id="company-profile-form"
+                            style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem;">
+                            <div class="form-group">
+                                <label>Raison Sociale</label>
+                                <input type="text" id="comp-name" placeholder="Ex: Ma Société SARL">
+                            </div>
+                            <div class="form-group">
+                                <label>Sigle / Marque</label>
+                                <input type="text" id="comp-sigle" placeholder="Ex: MSS">
+                            </div>
+                            <div class="form-group">
+                                <label>Identifiant Fiscal / RCCM</label>
+                                <input type="text" id="comp-number" placeholder="RCCM-XX-000...">
+                            </div>
+                            <div class="form-group">
+                                <label>Forme Juridique</label>
+                                <input type="text" id="comp-ty" placeholder="Ex: SARL, SA, Ets">
+                            </div>
+                            <div class="form-group" style="grid-column: span 2;">
+                                <label>Siège Social / Adresse complète</label>
+                                <input type="text" id="comp-address" placeholder="123 Avenue du Commerce...">
+                            </div>
+                            <div class="form-group" style="grid-column: span 2;">
+                                <label>Contacts (Téléphone, Email)</label>
+                                <input type="text" id="comp-contact" placeholder="+243 ... / contact@societe.com">
+                            </div>
+                            <div
+                                style="grid-column: span 3; display: flex; justify-content: flex-end; border-top: 1px solid #e2e8f0; padding-top: 1.5rem;">
+                                <button type="submit" class="btn-primary"
+                                    style="background: var(--primary-color); padding: 0.8rem 2.5rem;">METTRE À JOUR LE
+                                    PROFIL</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="excel-sheet" style="border: 2px solid #fee2e2;">
+                    <div class="excel-header" style="background: #ef4444; border-bottom-color: #dc2626;">
+                        <h3><i class="fa-solid fa-triangle-exclamation"></i> MAINTENANCE & SÉCURITÉ</h3>
+                    </div>
+                    <div style="padding: 1.5rem; background: #fff1f2;">
+                        <p style="color: #991b1b; font-weight: 700; margin-bottom: 1.5rem; font-size: 0.9rem;">
+                            <i class="fa-solid fa-shield-halved"></i> ZONE CRITIQUE : Les opérations ci-dessous
+                            impactent
+                            directement l'intégrité des données financières.
+                        </p>
+                        <div style="display: flex; gap: 1.5rem;">
+                            <button id="btn-reset-data" class="excel-sheet"
+                                style="flex: 1; padding: 1.25rem; background: #dc2626; color: white; border: none; font-weight: 800; cursor: pointer; text-transform: uppercase; font-size: 0.8rem;">
+                                <i class="fa-solid fa-trash-can"></i> Réinitialiser l'application (ZÉRO)
+                            </button>
+                            <button id="btn-import-data" class="excel-sheet"
+                                style="flex: 1; padding: 1.25rem; background: #1e1b4b; color: white; border: none; font-weight: 800; cursor: pointer; text-transform: uppercase; font-size: 0.8rem;">
+                                <i class="fa-solid fa-file-import"></i> Restaurer une sauvegarde (.json)
+                            </button>
+                        </div>
+                        <input type="file" id="import-file" style="display:none;" accept=".json">
+                    </div>
+                </div>
+            </section>
+
+        </main>
+        <!-- Printable receipt Template -->
+        <div id="print-area" style="display:none;">
+            <!-- Dymic content will be injected here -->
+        </div>
+        <template id="receipt-template">
+            <div class="receipt"
+                style="background: #fcfaf2; border: 2px solid #1e293b; padding: 30px; position: relative; font-family: 'Inter', sans-serif; color: #1e293b;">
+
+                <!-- HEADER: Professional & Balanced -->
+                <div
+                    style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 25px; border-bottom: 2px solid #1e293b; padding-bottom: 15px;">
+                    <div style="display: flex; align-items: center; gap: 20px;">
+                        <div class="comp-logo-container"
+                            style="width: 70px; height: 70px; display: flex; align-items: center; justify-content: center; background: #f8fafc; border-radius: 8px;">
+                            <img class="val-logo" src="" style="max-width: 60px; max-height: 60px; display: none;">
+                        </div>
+                        <div>
+                            <div class="val-comp-name"
+                                style="font-weight: 900; font-size: 1.6rem; text-transform: uppercase; letter-spacing: -0.02em; line-height: 1;">
+                            </div>
+                            <div class="val-comp-details"
+                                style="font-size: 0.75rem; color: #64748b; margin-top: 6px; font-weight: 500;"></div>
+                        </div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div
+                            style="font-size: 0.75rem; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">
+                            PIÈCE DE CAISSE</div>
+                        <div class="val-id" style="font-weight: 900; font-size: 1.5rem; color: #0f172a;"></div>
+                    </div>
+                </div>
+
+                <!-- MAIN CONTENT AREA -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 25px;">
+                    <!-- LEFT COLUMN: Operation Details -->
+                    <div style="display: flex; flex-direction: column; gap: 15px;">
+                        <div>
+                            <span
+                                style="font-size: 0.65rem; font-weight: 800; color: #94a3b8; text-transform: uppercase;">DATE
+                                DE L'OPÉRATION</span>
+                            <div class="val-date" style="font-size: 1.1rem; font-weight: 700;"></div>
+                        </div>
+                        <div>
+                            <span
+                                style="font-size: 0.65rem; font-weight: 800; color: #94a3b8; text-transform: uppercase;">OBJET
+                                / NATURE</span>
+                            <div style="font-size: 1.1rem; font-weight: 700;"><span class="val-category"></span> - <span
+                                    class="val-details"></span></div>
+                        </div>
+                        <div class="val-row-month" style="display: none;">
+                            <span
+                                style="font-size: 0.65rem; font-weight: 800; color: #b91c1c; text-transform: uppercase;">MOIS
+                                DE DÉDUCTION</span>
+                            <div class="val-advance-month" style="font-size: 1.1rem; font-weight: 800; color: #b91c1c;">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- RIGHT COLUMN: Payment & Amount -->
+                    <div
+                        style="background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; display: flex; flex-direction: column; justify-content: center; gap: 10px;">
+                        <div style="text-align: center;">
+                            <span
+                                style="font-size: 0.7rem; font-weight: 800; color: #64748b; text-transform: uppercase;">MONTANT
+                                NET</span>
+                            <div class="val-amount"
+                                style="font-size: 2rem; font-weight: 950; color: #0f172a; margin-top: 5px;"></div>
+                        </div>
+                        <div
+                            style="display: flex; justify-content: space-between; border-top: 1px dashed #cbd5e1; padding-top: 10px; font-size: 0.85rem;">
+                            <span style="color: #64748b; font-weight: 600;">RÈGLEMENT:</span>
+                            <span style="font-weight: 800;"><span class="val-method"></span> <span
+                                    class="val-ref"></span></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ACTORS SECTION -->
+                <div
+                    style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px; background: #fff; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px;">
+                    <div>
+                        <span style="font-size: 0.6rem; font-weight: 800; color: #94a3b8;">REMETTANT</span>
+                        <div class="val-remettant" style="font-size: 0.9rem; font-weight: 700;"></div>
+                    </div>
+                    <div>
+                        <span style="font-size: 0.6rem; font-weight: 800; color: #94a3b8;">BÉNÉFICIAIRE</span>
+                        <div class="val-partner" style="font-size: 0.9rem; font-weight: 700;"></div>
+                    </div>
+                    <div>
+                        <span style="font-size: 0.6rem; font-weight: 800; color: #94a3b8;">EXÉCUTANT</span>
+                        <div class="val-executor" style="font-size: 0.9rem; font-weight: 700;"></div>
+                    </div>
+                </div>
+
+                <!-- OBSERVATION -->
+                <div style="margin-bottom: 30px; font-size: 0.85rem;">
+                    <span
+                        style="font-size: 0.65rem; font-weight: 800; color: #94a3b8; text-transform: uppercase; display: block; margin-bottom: 5px;">OBSERVATIONS</span>
+                    <div class="val-obs"
+                        style="padding: 10px; background: #fdfaf5; border: 1px solid #eee; border-radius: 6px; font-style: italic; color: #4b5563;">
+                    </div>
+                </div>
+
+                <!-- SIGNATURES: Side-by-Side Boxes -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-top: 30px;">
+                    <div
+                        style="border: 1px solid #1e293b; border-radius: 8px; overflow: hidden; height: 120px; display: flex; flex-direction: column;">
+                        <div
+                            style="background: #1e293b; color: #fff; text-align: center; font-size: 0.65rem; font-weight: 900; padding: 4px; text-transform: uppercase;">
+                            LE CAISSIER</div>
+                        <div style="flex: 1;"></div>
+                    </div>
+                    <div
+                        style="border: 1px solid #1e293b; border-radius: 8px; overflow: hidden; height: 120px; display: flex; flex-direction: column;">
+                        <div
+                            style="background: #1e293b; color: #fff; text-align: center; font-size: 0.65rem; font-weight: 900; padding: 4px; text-transform: uppercase;">
+                            LE BÉNÉFICIAIRE</div>
+                        <div style="flex: 1;"></div>
+                    </div>
+                    <div
+                        style="border: 1px solid #1e293b; border-radius: 8px; overflow: hidden; height: 120px; display: flex; flex-direction: column;">
+                        <div
+                            style="background: #1e293b; color: #fff; text-align: center; font-size: 0.65rem; font-weight: 900; padding: 4px; text-transform: uppercase;">
+                            LA DIRECTION</div>
+                        <div style="flex: 1;"></div>
+                    </div>
+                </div>
+
+                <!-- PRINT INFO -->
+                <div
+                    style="margin-top: 20px; display: flex; justify-content: space-between; align-items: flex-end; font-size: 0.65rem; color: #94a3b8; font-weight: 700;">
+                    <div>Caisse: <span class="val-caisse"></span> | Agent: <span class="val-user"></span></div>
+                    <div class="print-indicator" style="text-transform: uppercase; font-size: 0.75rem; color: #cbd5e1;">
+                        Original</div>
+                </div>
+            </div>
+        </template>
+    </div>
+    <!-- NAVIGATION FAILSAFE: Self-contained navigation that works even if init() fails -->
+    <script>
+        (function () {
+            function doNav() {
+                var views = document.querySelectorAll('.view');
+                var menuItems = document.querySelectorAll('.menu-item');
+
+                if (!menuItems.length || !views.length) return;
+
+                function showView(viewId) {
+                    views.forEach(function (v) {
+                        if (v.id === viewId) {
+                            v.classList.remove('hidden-view');
+                            v.classList.add('active-view');
+                        } else {
+                            v.classList.remove('active-view');
+                            v.classList.add('hidden-view');
+                        }
+                    });
+                    menuItems.forEach(function (m) {
+                        if (m.getAttribute('data-target') === viewId) {
+                            m.classList.add('active');
+                        } else {
+                            m.classList.remove('active');
+                        }
+                    });
+                    // Also call app.js switchView if available
+                    if (window.switchView && typeof window.switchView === 'function') {
+                        try { window.switchView(viewId); } catch (e) { }
+                    }
+                }
+
+                menuItems.forEach(function (item) {
+                    item.addEventListener('click', function (e) {
+                        var target = item.getAttribute('data-target');
+                        if (target) showView(target);
+                    });
+                });
+
+                // Also expose globally
+                window._navShowView = showView;
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', doNav);
+            } else {
+                doNav();
+            }
+        })();
+    </script>
+    <script type="module" src="firebase_config.js"></script>
+    <script src="app.js" defer></script>
+</body>
+
+</html>
