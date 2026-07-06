@@ -10,6 +10,7 @@ import {
     onSnapshot,
     enableIndexedDbPersistence
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 // ---- Configuration Firebase ----
 const firebaseConfig = {
@@ -24,6 +25,20 @@ const firebaseConfig = {
 // ---- Initialisation Firebase ----
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
+
+// NOTE (SECURITY): This client-side module assumes you will protect sensitive
+// resources with Firestore Security Rules and Firebase Authentication.
+// Recommended steps:
+// 1. Use Firebase Authentication for users and assign a `role` custom claim
+//    (e.g. `{ role: 'admin' }`) to administrator accounts using the Admin SDK.
+// 2. Deploy Firestore rules (see firestore.rules in the repo) which restrict
+//    access to `agents` and `parametres` collections/documents to users with
+//    `request.auth.token.role == 'admin'`.
+// 3. Avoid storing sensitive fields only inside a single document if you need
+//    per-field restrictions — instead split sensitive data into dedicated
+//    documents/collections so rules can protect them.
+
 
 // Activer la persistance hors-ligne (cache local IndexedDB)
 enableIndexedDbPersistence(db).catch((err) => {
@@ -163,6 +178,14 @@ window.FirebaseDB = {
     listen: listenToFirestore,
     showStatus: showFirebaseStatus,
     isAvailable: true
+};
+
+// Expose simple Auth helpers for the client
+window.FirebaseAuth = {
+    auth,
+    signIn: (email, password) => signInWithEmailAndPassword(auth, email, password),
+    signOut: () => signOut(auth),
+    onAuthStateChanged: (cb) => onAuthStateChanged(auth, cb)
 };
 
 console.log('[Firebase] ✅ Module Firebase/Firestore initialisé.');

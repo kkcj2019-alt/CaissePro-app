@@ -110,8 +110,13 @@ document.addEventListener('DOMContentLoaded', () => {
             setupNavigation();
             const btnlogout = document.getElementById('btn-logout');
             if (btnlogout) {
-                btnlogout.onclick = () => {
+                btnlogout.onclick = async () => {
                     if (confirm('Voulez-vous vraiment vous déconnecter ?')) {
+                        try {
+                            if (window.FirebaseAuth && typeof window.FirebaseAuth.signOut === 'function') {
+                                await window.FirebaseAuth.signOut();
+                            }
+                        } catch (err) { console.warn('Firebase signOut failed:', err); }
                         localStorage.removeItem('currentUser');
                         window.location.reload();
                     }
@@ -2478,7 +2483,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const currentUser = state.currentUser || JSON.parse(localStorage.getItem('currentUser') || '{}');
                 if (restrictedViews.includes(targetViewId) && currentUser.role !== 'admin') {
                     e.preventDefault();
-                    alert('Accès refusé : réservé aux administrateurs.');
+                    if (typeof showNotification === 'function') showNotification('Accès refusé : réservé aux administrateurs.', 'error');
+                    else alert('Accès refusé : réservé aux administrateurs.');
                     return;
                 }
 

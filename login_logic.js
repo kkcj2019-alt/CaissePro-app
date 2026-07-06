@@ -19,14 +19,46 @@ function checkLogin() {
         const agentsMenu = document.querySelector('.menu-item[data-target="agents"]');
         const paramMenu = document.querySelector('.menu-item[data-target="parametres"]');
 
-        // Only show these menus to administrators. Explicitly hide for other roles (eg. simple caissier).
-        if (agentsMenu) {
-            if (isAdmin) { agentsMenu.style.display = 'flex'; agentsMenu.removeAttribute('aria-hidden'); }
-            else { agentsMenu.style.display = 'none'; agentsMenu.setAttribute('aria-hidden', 'true'); }
+        // Only show these menus to administrators. For non-admins we move them into a hidden container
+        // so they are not visible in the DOM or via keyboard navigation, but can be restored for admins.
+        const ensureAdminStorage = () => {
+            let store = document.getElementById('admin-menu-storage');
+            if (!store) {
+                store = document.createElement('div');
+                store.id = 'admin-menu-storage';
+                store.style.display = 'none';
+                document.body.appendChild(store);
+            }
+            return store;
+        };
+
+        const adminStore = ensureAdminStorage();
+
+        if (!isAdmin) {
+            if (agentsMenu && agentsMenu.parentElement) {
+                adminStore.appendChild(agentsMenu);
+            }
+            if (paramMenu && paramMenu.parentElement) {
+                adminStore.appendChild(paramMenu);
+            }
+        } else {
+            // Restore menus for admin if they were moved to storage
+            const menuList = document.querySelector('.menu-list');
+            const storedAgents = adminStore.querySelector('.menu-item[data-target="agents"]');
+            const storedParams = adminStore.querySelector('.menu-item[data-target="parametres"]');
+            if (storedAgents && menuList) menuList.appendChild(storedAgents);
+            if (storedParams && menuList) menuList.appendChild(storedParams);
+            // Ensure visible
+            const restoredAgents = document.querySelector('.menu-item[data-target="agents"]');
+            const restoredParams = document.querySelector('.menu-item[data-target="parametres"]');
+            if (restoredAgents) { restoredAgents.style.display = 'flex'; restoredAgents.removeAttribute('aria-hidden'); }
+            if (restoredParams) { restoredParams.style.display = 'flex'; restoredParams.removeAttribute('aria-hidden'); }
         }
-        if (paramMenu) {
-            if (isAdmin) { paramMenu.style.display = 'flex'; paramMenu.removeAttribute('aria-hidden'); }
-            else { paramMenu.style.display = 'none'; paramMenu.setAttribute('aria-hidden', 'true'); }
+
+        // Refresh in-memory menu list used by navigation
+        if (window.state) {
+            state.menuItems = document.querySelectorAll('.menu-item');
+        }
 
         // --- Affichage du nom ---
         const userNameSpan = document.getElementById('connected-user-name');
@@ -36,6 +68,25 @@ function checkLogin() {
     }
 }
 
+// Listen to Firebase Auth state changes to pick up claims-based roles
+if (window.FirebaseAuth && typeof window.FirebaseAuth.onAuthStateChanged === 'function') {
+    window.FirebaseAuth.onAuthStateChanged(async (user) => {
+        if (!user) return;
+        try {
+            const idTokenResult = await user.getIdTokenResult(true);
+            const role = idTokenResult.claims && idTokenResult.claims.role ? idTokenResult.claims.role : 'user';
+            const uiUser = { uid: user.uid, name: user.displayName || user.email, email: user.email, role };
+            // Persist minimal currentUser for compatibility with existing UI
+            localStorage.setItem('currentUser', JSON.stringify(uiUser));
+            window.state = window.state || {};
+            state.currentUser = uiUser;
+            if (typeof checkLogin === 'function') checkLogin();
+        } catch (err) {
+            console.error('Erreur lors de la récupération des claims:', err);
+        }
+    });
+}
+
 function setupLogin() {
     const loginForm = document.getElementById('login-form');
     if (loginForm) {
@@ -43,6 +94,26 @@ function setupLogin() {
             e.preventDefault();
             const username = document.getElementById('login-username').value.trim();
             const password = document.getElementById('login-password').value.trim();
+
+            // First attempt: Firebase Authentication (email/password) if available
+            if (window.FirebaseAuth && typeof window.FirebaseAuth.signIn === 'function') {
+                try {
+                    const cred = await window.FirebaseAuth.signIn(username, password);
+                    const user = cred.user;
+                    const idTokenResult = await user.getIdTokenResult(true);
+                    const role = idTokenResult.claims && idTokenResult.claims.role ? idTokenResult.claims.role : 'user';
+                    const uiUser = { uid: user.uid, name: user.displayName || user.email, email: user.email, role };
+                    localStorage.setItem('currentUser', JSON.stringify(uiUser));
+                    state.currentUser = uiUser;
+                    if (typeof checkLogin === 'function') checkLogin();
+                    document.getElementById('login-form').reset();
+                    window.location.reload();
+                    return;
+                } catch (err) {
+                    console.warn('Firebase Auth failed for user:', err);
+                    // fallthrough to local check
+                }
+            }
 
             const checkUser = () => {
                 // Ensure agents exist

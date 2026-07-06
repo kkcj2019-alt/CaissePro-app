@@ -1,0 +1,37 @@
+// Firestore security rules for CaissePro
+// - Require authentication for reads/writes
+// - Restrict `agents` and `parametres` access to users with custom claim role=='admin'
+// Important: These rules assume you use Firebase Authentication and set a
+// custom claim `role: 'admin'` for administrator accounts via the Admin SDK.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Agents collection - only admins can read/write
+    match /agents/{agentId} {
+      allow read, write: if request.auth != null && request.auth.token.role == 'admin';
+    }
+
+    // Parametres (settings) collection - only admins can read/write
+    match /parametres/{paramId} {
+      allow read, write: if request.auth != null && request.auth.token.role == 'admin';
+    }
+
+    // General caisses document used by the client for non-sensitive data.
+    // Read allowed to authenticated users, writes require admin.
+    match /caisses/{caisseId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.token.role == 'admin';
+    }
+
+    // Default: deny everything else
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+
+// Notes:
+// - If your app currently stores `agents` or `parametres` as fields inside a
+//   single document (e.g. /caisses/caissepro_data), consider splitting them
+//   into separate documents/collections so rules can enforce per-resource access.
