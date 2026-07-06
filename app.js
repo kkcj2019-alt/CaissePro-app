@@ -2469,16 +2469,30 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Navigation ---
     function setupNavigation() {
         state.menuItems.forEach(item => {
-            item.addEventListener('click', () => {
+            item.addEventListener('click', (e) => {
                 const targetViewId = item.getAttribute('data-target');
-                if (targetViewId) {
-                    switchView(targetViewId);
-                    updateActiveMenu(item);
+                if (!targetViewId) return;
+
+                // Restrict access to sensitive views for non-admin users (eg. simple caissier)
+                const restrictedViews = ['agents', 'parametres'];
+                const currentUser = state.currentUser || JSON.parse(localStorage.getItem('currentUser') || '{}');
+                if (restrictedViews.includes(targetViewId) && currentUser.role !== 'admin') {
+                    e.preventDefault();
+                    alert('Accès refusé : réservé aux administrateurs.');
+                    return;
                 }
+
+                switchView(targetViewId);
+                updateActiveMenu(item);
             });
         });
     }
     function switchView(viewId) {
+        const restrictedViews = ['agents', 'parametres'];
+        const currentUser = state.currentUser || JSON.parse(localStorage.getItem('currentUser') || '{}');
+        if (restrictedViews.includes(viewId) && currentUser.role !== 'admin') {
+            viewId = 'accueil';
+        }
         state.currentView = viewId;
         state.views.forEach(view => {
             if (view.id === viewId) {

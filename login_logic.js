@@ -15,12 +15,24 @@ function checkLogin() {
         if (appContainer) appContainer.style.filter = 'none';
 
         // --- Permissions ---
-        const isAdmin = state.currentUser.role === 'admin';
+        const isAdmin = state.currentUser && state.currentUser.role === 'admin';
         const agentsMenu = document.querySelector('.menu-item[data-target="agents"]');
         const paramMenu = document.querySelector('.menu-item[data-target="parametres"]');
-        
-        if (agentsMenu) agentsMenu.style.display = isAdmin ? 'flex' : 'none';
-        if (paramMenu) paramMenu.style.display = isAdmin ? 'flex' : 'none';
+
+        // Only show these menus to administrators. Explicitly hide for other roles (eg. simple caissier).
+        if (agentsMenu) {
+            if (isAdmin) { agentsMenu.style.display = 'flex'; agentsMenu.removeAttribute('aria-hidden'); }
+            else { agentsMenu.style.display = 'none'; agentsMenu.setAttribute('aria-hidden', 'true'); }
+        }
+        if (paramMenu) {
+            if (isAdmin) { paramMenu.style.display = 'flex'; paramMenu.removeAttribute('aria-hidden'); }
+            else { paramMenu.style.display = 'none'; paramMenu.setAttribute('aria-hidden', 'true'); }
+
+        // --- Affichage du nom ---
+        const userNameSpan = document.getElementById('connected-user-name');
+        if (userNameSpan) {
+            userNameSpan.textContent = state.currentUser.name || state.currentUser.login;
+        }
     }
 }
 
