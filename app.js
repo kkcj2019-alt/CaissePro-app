@@ -108,6 +108,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // 2. Core Listeners
         try {
             setupNavigation();
+            // Re-apply menu restrictions after setupNavigation to ensure menus stay hidden
+            try { checkLogin(); } catch (e) { console.error('checkLogin re-apply fail:', e); }
             const btnlogout = document.getElementById('btn-logout');
             if (btnlogout) {
                 btnlogout.onclick = async () => {
@@ -2229,8 +2231,40 @@ document.addEventListener('DOMContentLoaded', () => {
         const caisseSelect = document.getElementById('global-caisse-select');
         if (!caisseSelect) return;
 
+        // Apply caisse restrictions based on user role and access
+        const user = state.currentUser || JSON.parse(localStorage.getItem('currentUser') || '{}');
+        if (user && user.role !== 'admin') {
+            // Non-admin: hide 'all' option and filter caisses based on access level
+            const opts = caisseSelect.options;
+            for (let i = 0; i < opts.length; i++) {
+                const opt = opts[i];
+                const val = opt.value;
+                // Hide 'all' option for non-admins
+                if (val === 'all') {
+                    opt.disabled = true;
+                    opt.style.display = 'none';
+                }
+                // Restrict specific caisses based on access level
+                if (user.access && user.access !== 'both') {
+                    if (val === 'general' && user.access === 'secondary') {
+                        opt.disabled = true;
+                        opt.style.display = 'none';
+                    } else if (val === 'secondary' && user.access === 'general') {
+                        opt.disabled = true;
+                        opt.style.display = 'none';
+                    }
+                }
+            }
+        }
+
         // Restore from localStorage
-        const savedCaisse = localStorage.getItem('activeCaisse') || 'general';
+        let savedCaisse = localStorage.getItem('activeCaisse') || 'general';
+        // Validate that the saved caisse is accessible
+        const user2 = state.currentUser || JSON.parse(localStorage.getItem('currentUser') || '{}');
+        if (user2 && user2.role !== 'admin' && user2.access && user2.access !== 'both') {
+            if (user2.access === 'general' && savedCaisse === 'secondary') savedCaisse = 'general';
+            else if (user2.access === 'secondary' && savedCaisse === 'general') savedCaisse = 'secondary';
+        }
         caisseSelect.value = savedCaisse;
         state.currentCaisse = savedCaisse;
 
@@ -2265,25 +2299,37 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     // --- Dashboard logic ---
     function updateDashboard() {
+        // Get user and determine which caisse they can access
+        const user = state.currentUser || JSON.parse(localStorage.getItem('currentUser') || '{}');
+        const dashboardCaisseSelect = document.getElementById('global-caisse-select');
+        
+        // For non-admins, force caisse based on access level
+        let selectedCaisse = dashboardCaisseSelect ? dashboardCaisseSelect.value : 'general';
+        if (user && user.role !== 'admin' && user.access && user.access !== 'both') {
+            // Non-admin with restricted access: force their caisse
+            selectedCaisse = user.access;
+            if (dashboardCaisseSelect) {
+                dashboardCaisseSelect.value = selectedCaisse;
+            }
+        }
+        if (!selectedCaisse) selectedCaisse = 'general';
+
         // Update Fiscal Year Display on Dashboard
         const fiscalYearSelect = document.getElementById('fiscal-year-select');
         const dashboardYearDisplay = document.getElementById('dashboard-fiscal-year-display');
         if (fiscalYearSelect && dashboardYearDisplay) {
             dashboardYearDisplay.textContent = fiscalYearSelect.value;
         }
-        const dashboardCaisseSelect = document.getElementById('global-caisse-select');
-        let selectedCaisse = dashboardCaisseSelect ? dashboardCaisseSelect.value : 'general';
-        if (!selectedCaisse) selectedCaisse = 'general';
         const dashboardTitle = document.getElementById('dashboard-title');
         if (dashboardTitle) {
             // Only update the text node (first child), keep the selector (element child)
             const textNode = dashboardTitle.firstChild;
             if (textNode && textNode.nodeType === Node.TEXT_NODE) {
-                textNode.textContent = selectedCaisse === 'general' ? '?? Tableau de Bord ' : '?? Caisse Secondaire ';
+                textNode.textContent = selectedCaisse === 'general' ? '📊 Tableau de Bord ' : '📊 Caisse Secondaire ';
             } else {
-                // Fallback if structure changed, try to preser?ve the select if it exists inside
+                // Fallback if structure changed, try to preserve the select if it exists inside
                 const selector = dashboardTitle.querySelector('.fiscal-year-selector');
-                dashboardTitle.textContent = selectedCaisse === 'general' ? '?? Tableau de Bord ' : '?? Caisse Secondaire ';
+                dashboardTitle.textContent = selectedCaisse === 'general' ? '📊 Tableau de Bord ' : '📊 Caisse Secondaire ';
                 if (selector) dashboardTitle.appendChild(selector);
             }
         }
@@ -2298,8 +2344,9 @@ document.addEventListener('DOMContentLoaded', () => {
         let totalLoan = 0;
         let TOTALAcomptes = 0;
 
-        const user = state.currentUser;
-        const canViewAll = user && (user.viewAllBalances || user.role === 'admin');
+        const userForDash = state.currentUser || JSON.parse(localStorage.getItem('currentUser') || '{}');
+        const isAdmin = userForDash && userForDash.role === 'admin';
+        const canViewAll = isAdmin && userForDash.viewAllBalances;
 
         appData.transactions.forEach(t => {
             const tCaisseForAcompte = (t.caisse === 'secondary') ? 'secondary' : 'general';
@@ -2350,12 +2397,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const loanEl = document.getElementById('kpi-loans');
 
         if (balel) {
-            if (canViewAll) {
+            if (canViewAll && selectedCaisse === 'all') {
                 balel.innerHTML = `
                     <div style="font-size: 1.15rem; margin-bottom: 0.25rem;">Générale: <span style="color: var(--primary-color);">${formatCurrency(generalBalance)}</span></div>
                     <div style="font-size: 1.15rem;">Secondaire: <span style="color: var(--primary-color);">${formatCurrency(secondaryBalance)}</span></div>
                 `;
             } else {
+                // Non-admin or single caisse: show only current caisse balance
                 balel.textContent = formatCurrency(TOTALBalance);
             }
         }
@@ -2473,10 +2521,21 @@ document.addEventListener('DOMContentLoaded', () => {
     window.formatCurrency = formatCurrency;
     // --- Navigation ---
     function setupNavigation() {
+        // After menus are set up, reapply access restrictions to be sure
+        if (typeof checkLogin === 'function') checkLogin();
+        
         state.menuItems.forEach(item => {
             item.addEventListener('click', (e) => {
                 const targetViewId = item.getAttribute('data-target');
                 if (!targetViewId) return;
+
+                // Check if menu itself is hidden for non-admin; if so, do not allow click
+                if (item.style.display === 'none' || item.getAttribute('aria-hidden') === 'true') {
+                    e.preventDefault();
+                    if (typeof showNotification === 'function') showNotification('Accès refusé : réservé aux administrateurs.', 'error');
+                    else alert('Accès refusé : réservé aux administrateurs.');
+                    return;
+                }
 
                 // Restrict access to sensitive views for non-admin users (eg. simple caissier)
                 const restrictedViews = ['agents', 'parametres'];

@@ -14,56 +14,68 @@ function checkLogin() {
         if (loginModal) loginModal.style.display = 'none';
         if (appContainer) appContainer.style.filter = 'none';
 
-        // --- Permissions ---
+        // --- Permissions: Hide sensitive menus for non-admins ---
         const isAdmin = state.currentUser && state.currentUser.role === 'admin';
         const agentsMenu = document.querySelector('.menu-item[data-target="agents"]');
         const paramMenu = document.querySelector('.menu-item[data-target="parametres"]');
 
-        // Only show these menus to administrators. For non-admins we move them into a hidden container
-        // so they are not visible in the DOM or via keyboard navigation, but can be restored for admins.
-        const ensureAdminStorage = () => {
-            let store = document.getElementById('admin-menu-storage');
-            if (!store) {
-                store = document.createElement('div');
-                store.id = 'admin-menu-storage';
-                store.style.display = 'none';
-                document.body.appendChild(store);
-            }
-            return store;
-        };
-
-        const adminStore = ensureAdminStorage();
-
         if (!isAdmin) {
-            if (agentsMenu && agentsMenu.parentElement) {
-                adminStore.appendChild(agentsMenu);
+            // Non-admin: hide both menus completely from DOM and interaction
+            if (agentsMenu) {
+                agentsMenu.style.display = 'none';
+                agentsMenu.setAttribute('aria-hidden', 'true');
+                agentsMenu.style.pointerEvents = 'none';
             }
-            if (paramMenu && paramMenu.parentElement) {
-                adminStore.appendChild(paramMenu);
+            if (paramMenu) {
+                paramMenu.style.display = 'none';
+                paramMenu.setAttribute('aria-hidden', 'true');
+                paramMenu.style.pointerEvents = 'none';
             }
         } else {
-            // Restore menus for admin if they were moved to storage
-            const menuList = document.querySelector('.menu-list');
-            const storedAgents = adminStore.querySelector('.menu-item[data-target="agents"]');
-            const storedParams = adminStore.querySelector('.menu-item[data-target="parametres"]');
-            if (storedAgents && menuList) menuList.appendChild(storedAgents);
-            if (storedParams && menuList) menuList.appendChild(storedParams);
-            // Ensure visible
-            const restoredAgents = document.querySelector('.menu-item[data-target="agents"]');
-            const restoredParams = document.querySelector('.menu-item[data-target="parametres"]');
-            if (restoredAgents) { restoredAgents.style.display = 'flex'; restoredAgents.removeAttribute('aria-hidden'); }
-            if (restoredParams) { restoredParams.style.display = 'flex'; restoredParams.removeAttribute('aria-hidden'); }
+            // Admin: show both menus
+            if (agentsMenu) {
+                agentsMenu.style.display = 'flex';
+                agentsMenu.removeAttribute('aria-hidden');
+                agentsMenu.style.pointerEvents = 'auto';
+            }
+            if (paramMenu) {
+                paramMenu.style.display = 'flex';
+                paramMenu.removeAttribute('aria-hidden');
+                paramMenu.style.pointerEvents = 'auto';
+            }
         }
 
-        // Refresh in-memory menu list used by navigation
-        if (window.state) {
-            state.menuItems = document.querySelectorAll('.menu-item');
-        }
-
-        // --- Affichage du nom ---
+        // --- Display user name ---
         const userNameSpan = document.getElementById('connected-user-name');
         if (userNameSpan) {
-            userNameSpan.textContent = state.currentUser.name || state.currentUser.login;
+            const userName = state.currentUser.name || state.currentUser.login || state.currentUser.email || 'Utilisateur';
+            userNameSpan.textContent = userName;
+            userNameSpan.style.display = 'inline';
+            userNameSpan.style.visibility = 'visible';
+            userNameSpan.style.opacity = '1';
+        }
+        
+        // Apply caisse access restrictions for non-admins
+        if (!isAdmin && state.currentUser.access) {
+            const caisseSelect = document.getElementById('global-caisse-select');
+            if (caisseSelect) {
+                // Restrict specific caisses based on user.access
+                const opts = caisseSelect.options;
+                for (let i = 0; i < opts.length; i++) {
+                    const opt = opts[i];
+                    const val = opt.value;
+                    if (val === 'general' && state.currentUser.access === 'secondary') {
+                        opt.disabled = true;
+                        opt.style.display = 'none';
+                    } else if (val === 'secondary' && state.currentUser.access === 'general') {
+                        opt.disabled = true;
+                        opt.style.display = 'none';
+                    }
+                }
+                // Set the user's accessible caisse
+                if (state.currentUser.access === 'general') caisseSelect.value = 'general';
+                else if (state.currentUser.access === 'secondary') caisseSelect.value = 'secondary';
+            }
         }
     }
 }
@@ -80,7 +92,7 @@ if (window.FirebaseAuth && typeof window.FirebaseAuth.onAuthStateChanged === 'fu
             localStorage.setItem('currentUser', JSON.stringify(uiUser));
             window.state = window.state || {};
             state.currentUser = uiUser;
-            if (typeof checkLogin === 'function') checkLogin();
+            setTimeout(() => { if (typeof checkLogin === 'function') checkLogin(); }, 100);
         } catch (err) {
             console.error('Erreur lors de la récupération des claims:', err);
         }
