@@ -368,6 +368,21 @@ body {
     gap: 1rem;
 }
 
+.menu-item.user-display {
+    justify-content: flex-start;
+    background: rgba(59, 130, 246, 0.08);
+    color: var(--primary-color);
+}
+
+.menu-item.user-display i {
+    color: var(--primary-color);
+}
+
+.menu-item.user-display span {
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
 .fiscal-year-selector {
     background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%) !important;
     border: 2px solid #10b981 !important;

@@ -199,6 +199,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         console.log('Application CaissePro initialisée.');
         document.documentElement.classList.remove('fouc-loading');
+        // Ensure UI reflects current login state (display name, menu visibility)
+        try { if (typeof checkLogin === 'function') checkLogin(); } catch (e) { }
     }
     function loadInitialData() {
         try {
@@ -471,7 +473,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const singleWrap = document.getElementById('single-beneficiary-wrap');
 
             if (singlePartner && singleEmployee) {
-                const beneficiaryType = config.beneficiaryType || (isRH ? 'employee' : 'tiers');
+                // Force employee for acompte/pret modes, otherwise use config
+                const beneficiaryType = (isAcompte || isLoan) ? 'employee' : (config.beneficiaryType || (isRH ? 'employee' : 'tiers'));
 
                 // Forcer retour en saisie unique lors du changement de mode/code
                 const multiContainer = document.getElementById('multi-beneficiary-container');
@@ -658,6 +661,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     saveData();
                     renderCodes();
                     populateSelects();
+                    // If the transaction form currently has this code, update visibility immediately
+                    try {
+                        const currentCodeVal = (document.getElementById('code-input') || {}).value || '';
+                        if (currentCodeVal.toUpperCase().trim() === short && typeof updateVisibility === 'function') {
+                            const created = appData.codes.find(c => c.short === short);
+                            if (created) updateVisibility(created);
+                        }
+                    } catch (e) { /* ignore */ }
                     e.target.reset();
                     document.getElementById('add-code-form-container').style.display = 'none';
                     showNotification("Nouveau code créé avec succès", "success");
@@ -689,6 +700,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     renderCodes();
                     setupSmartSaisie();
                     populateSelects();
+                    // If the transaction form currently has this code, update visibility immediately
+                    try {
+                        const currentCodeVal = (document.getElementById('code-input') || {}).value || '';
+                        if (currentCodeVal.toUpperCase().trim() === short && typeof updateVisibility === 'function') {
+                            const updated = appData.codes[index];
+                            if (updated) updateVisibility(updated);
+                        }
+                    } catch (e) { }
                     document.getElementById('edit-code-form-container').style.display = 'none';
                 }
             };
@@ -1208,17 +1227,21 @@ document.addEventListener('DOMContentLoaded', () => {
             alert("La DATE et le MONTANT sont obligatoires.");
             return;
         }
-        if (mode === 'tiers' && !partner) {
-            alert("Le Partenaire est obligatoire en mode 'Avec Tiers'.");
+        // --- Déterminer le type de bénéficiaire à partir du code (priorité au code sur le mode) ---
+        const codeObj = (appData.codes || []).find(c => (c.short || '').toUpperCase() === (code || '').toUpperCase());
+        const beneficiaryType = codeObj ? (codeObj.beneficiaryType || 'tiers') : (isRH ? 'employee' : 'tiers');
+
+        // Validation selon le type attendu
+        if (beneficiaryType === 'employee' && !employeeBeneficiary) {
+            alert("Le bénéficiaire doit être un employé pour ce code. Veuillez sélectionner un employé.");
             return;
         }
-        if (isRH && !employeeBeneficiary) {
-            // Don't block – allow saving with empty beneficiary in RH modes
-            // alert("L'EMPLOYÉ bénéficiaire est obligatoire pour cette opération.");
-            // return;
+        if (beneficiaryType === 'tiers' && !partner) {
+            alert("Le bénéficiaire doit être un tiers pour ce code. Veuillez sélectionner un partenaire.");
+            return;
         }
 
-        const finalBeneficiary = isRH ? employeeBeneficiary : partner;
+        const finalBeneficiary = beneficiaryType === 'employee' ? employeeBeneficiary : partner;
 
         // Validation remettant optionnelle
         if (agentRemettant && appData.employees && appData.employees.length > 0) {
@@ -1229,7 +1252,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        const agentName = "Admin";
+        const agentName = (state.currentUser && (state.currentUser.name || state.currentUser.login || state.currentUser.email)) || 'Admin';
         const now = new Date();
         const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
 
@@ -1339,6 +1362,61 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 });
             }
+        }
+
+        // Partner ledger bookkeeping: keep trace of charge vs paid per partner
+        if (!appData.partnerLedger) appData.partnerLedger = {};
+        // Remove any existing ledger entries for this transaction (in case of edit)
+        Object.keys(appData.partnerLedger).forEach(pn => {
+            appData.partnerLedger[pn] = (appData.partnerLedger[pn] || []).filter(en => en.transactionId !== transaction.id);
+            if (appData.partnerLedger[pn].length === 0) delete appData.partnerLedger[pn];
+        });
+
+        // Helper to push an entry
+        const pushLedgerEntry = (pname, entry) => {
+            if (!pname) return;
+            if (!appData.partnerLedger[pname]) appData.partnerLedger[pname] = [];
+            appData.partnerLedger[pname].push(entry);
+        };
+
+        // Single partner
+        if (transaction.partner && transaction.partner !== 'MULTIPLE') {
+            const pname = transaction.partner;
+            const charge = parseFloat(transaction.amountCharge) || 0;
+            const paid = parseFloat(transaction.amount) || 0;
+            const remaining = parseFloat((charge - paid).toFixed(2));
+            pushLedgerEntry(pname, {
+                id: Date.now() + Math.floor(Math.random() * 1000),
+                transactionId: transaction.id,
+                date: transaction.date,
+                type: transaction.type,
+                charge,
+                paid,
+                remaining,
+                details: transaction.details,
+                user: transaction.user,
+                category: transaction.category
+            });
+        } else if (transaction.beneficiaries && transaction.beneficiaries.length > 0) {
+            // Multi-beneficiaries: create per-beneficiary ledger entries (paid left as 0 unless explicit mapping exists)
+            transaction.beneficiaries.forEach((b, bi) => {
+                const pname = b.name;
+                const charge = parseFloat(b.amount) || 0;
+                const paid = 0;
+                const remaining = parseFloat((charge - paid).toFixed(2));
+                pushLedgerEntry(pname, {
+                    id: Date.now() + bi,
+                    transactionId: transaction.id,
+                    date: transaction.date,
+                    type: transaction.type,
+                    charge,
+                    paid,
+                    remaining,
+                    details: transaction.details,
+                    user: transaction.user,
+                    category: transaction.category
+                });
+            });
         }
 
         // Option Modèle
@@ -1552,9 +1630,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const pTransactions = appData.transactions.filter(t =>
                 t.partner === p.name && (currentCaisse === 'all' || (t.caisse || 'general') === currentCaisse)
             );
-            const balance = pTransactions.reduce((acc, t) => {
-                return acc + (t.type === 'income' ? t.amount : -t.amount);
-            }, 0);
+            const ledgerEntries = (appData.partnerLedger && appData.partnerLedger[p.name]) || [];
+            const balance = ledgerEntries.length > 0
+                ? ledgerEntries.reduce((acc, en) => acc + (parseFloat(en.remaining || 0) || 0), 0)
+                : pTransactions.reduce((acc, t) => {
+                    const charge = parseFloat(t.amountCharge || t.amount) || 0;
+                    const paid = parseFloat(t.amount) || 0;
+                    return acc + (charge - paid);
+                }, 0);
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td style="text-align: center;"><input type="checkbox" class="tiers-row-cb" data-id="${p.name}"></td>
@@ -1622,46 +1705,83 @@ document.addEventListener('DOMContentLoaded', () => {
         const summaryArea = document.getElementById('tier-account-summary');
         historyBody.innerHTML = '';
         const currentCaisse = state.currentCaisse || 'general';
+        const ledgerEntries = (appData.partnerLedger && appData.partnerLedger[tierName]) || [];
         const txs = appData.transactions.filter(t =>
             t.partner === tierName && (currentCaisse === 'all' || (t.caisse || 'general') === currentCaisse)
-        ).sort((a, b) => new Date(a.date) - new Date(b.date));
+        );
+        const entries = ledgerEntries
+            .map(en => {
+                const tx = txs.find(t => t.id === en.transactionId);
+                return {
+                    sourceType: 'ledger',
+                    date: en.date || (tx && tx.date) || '',
+                    time: (tx && tx.time) || '00:00',
+                    category: en.category || (tx && tx.category) || '',
+                    details: en.details || (tx && tx.details) || '',
+                    executor: (tx && tx.executor) || '-',
+                    paymentMode: (tx && tx.paymentMode) || 'espèce',
+                    transactionId: en.transactionId,
+                    charge: parseFloat(en.charge || 0),
+                    paid: parseFloat(en.paid || 0),
+                    remaining: parseFloat(en.remaining || ((parseFloat(en.charge || 0) - parseFloat(en.paid || 0)).toFixed(2))) || 0,
+                    type: en.type || (tx && tx.type) || 'income'
+                };
+            })
+            .concat(
+                txs.filter(t => !ledgerEntries.some(en => en.transactionId === t.id)).map(t => ({
+                    sourceType: 'transaction',
+                    date: t.date,
+                    time: t.time || '00:00',
+                    category: t.category,
+                    details: t.details,
+                    executor: t.executor || '-',
+                    paymentMode: t.paymentMode || 'espèce',
+                    transactionId: t.id,
+                    charge: parseFloat(t.amountCharge || t.amount) || 0,
+                    paid: parseFloat(t.amount) || 0,
+                    remaining: parseFloat(((parseFloat(t.amountCharge || t.amount) || 0) - parseFloat(t.amount || 0)).toFixed(2)) || 0,
+                    type: t.type
+                }))
+            )
+            .sort((a, b) => new Date(a.date + ' ' + (a.time || '00:00')) - new Date(b.date + ' ' + (b.time || '00:00')));
+
         let cumulativeBalance = 0;
-        let TOTALIncome = 0;
-        let TOTALexpense = 0;
-        txs.forEach(t => {
-            const isInc = t.type === 'income';
-            if (isInc) TOTALIncome += t.amount; else TOTALexpense += t.amount;
-            cumulativeBalance += (isInc ? t.amount : -t.amount);
+        let TOTALCharge = 0;
+        let TOTALPaid = 0;
+        entries.forEach(entry => {
+            TOTALCharge += entry.charge;
+            TOTALPaid += entry.paid;
+            cumulativeBalance += entry.remaining;
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td>
-                    <div style="font-weight:700;">${t.date}</div>
-                    <div style="font-size:0.75rem; color:var(--text-muted);">${t.time || '00:00'}</div>
+                    <div style="font-weight:700;">${entry.date}</div>
+                    <div style="font-size:0.75rem; color:var(--text-muted);">${entry.time || '00:00'}</div>
                 </td>
                 <td>
-                   <div style="font-weight:600;">${t.category}</div>
-                   <div style="font-size:0.75rem;">${t.details || ''}</div>
+                   <div style="font-weight:600;">${entry.category}</div>
+                   <div style="font-size:0.75rem;">${entry.details || ''}</div>
                 </td>
-                <td><small>${t.executor || '-'}</small></td>
-                <td style="color:var(--accent-success); font-weight:700;">${isInc ? formatCurrency(t.amount) : '-'}</td>
-                <td style="color:var(--accent-danger); font-weight:700;">${!isInc ? formatCurrency(t.amount) : '-'}</td>
+                <td><small>${entry.executor || '-'}</small></td>
+                <td style="color:var(--accent-success); font-weight:700;">${entry.charge ? formatCurrency(entry.charge) : '-'}</td>
+                <td style="color:var(--accent-danger); font-weight:700;">${entry.paid ? formatCurrency(entry.paid) : '-'}</td>
                 <td style="font-weight:800;">${formatCurrency(cumulativeBalance)}</td>
-                <td><small>${(t.paymentMode || 'esp?ce').toUpperCase()}</small></td>
+                <td><small>${(entry.paymentMode || 'espèce').toUpperCase()}</small></td>
                 <td>
-                    <button class="btn-icon" onclick="editTransaction(${t.id})"><i class="fa-solid fa-pen"></i></button>
-                    <button class="btn-icon" onclick="printReceipt(${t.id})"><i class="fa-solid fa-print"></i></button>
+                    <button class="btn-icon" onclick="editTransaction(${entry.transactionId})"><i class="fa-solid fa-pen"></i></button>
+                    <button class="btn-icon" onclick="printReceipt(${entry.transactionId})"><i class="fa-solid fa-print"></i></button>
                 </td>
             `;
             historyBody.appendChild(tr);
         });
         summaryArea.innerHTML = `
             <div class="card kpi-card">
-                <h3>TOTAL Entr?es</h3>
-                <p class="amount" style="color:var(--accent-success)">${formatCurrency(TOTALIncome)}</p>
+                <h3>TOTAL CHARGE</h3>
+                <p class="amount" style="color:var(--accent-success)">${formatCurrency(TOTALCharge)}</p>
             </div>
             <div class="card kpi-card">
-                <h3>TOTAL SORTIEs</h3>
-                <p class="amount" style="color:var(--accent-danger)">${formatCurrency(TOTALexpense)}</p>
+                <h3>TOTAL AVANCE</h3>
+                <p class="amount" style="color:var(--accent-danger)">${formatCurrency(TOTALPaid)}</p>
             </div>
             <div class="card kpi-card">
                 <h3>Solde Net</h3>
@@ -1956,7 +2076,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const acompteTotal = transactions
                 .filter(t => {
-                    const isAcompte = t.category && t.category.toUpperCase().trim() === 'ACOMPTE' && !t.isDeducted;
+                    const isAcompte = t.category && t.category.toUpperCase().trim() === 'ACOMPTE';
                     if (!isAcompte) return false;
                     if (monthFilter && t.advanceMonth !== monthFilter) return false;
                     return true;
@@ -2060,41 +2180,82 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div>
                         <h6 style="border-bottom:1px solid #ddd; padding-bottom:0.5rem; margin-bottom:0.75rem;">Acomptes (Détails)</h6>
                         ${transactions.filter(t => t.category === 'ACOMPTE').length ? `
+                            <div style="margin-bottom: 0.75rem;">
+                                <button id="btn-validate-acomptes-grouped" class="btn-icon" style="background: #10b981; color: white; padding: 0.4rem 0.8rem; border-radius: 4px; font-size: 0.75rem; font-weight: 700;">
+                                    <i class="fa-solid fa-check"></i> VALIDER SÉLECTION
+                                </button>
+                            </div>
                             <table style="font-size:0.85rem; width:100%; border-collapse: collapse;">
                                 <thead>
                                     <tr style="background:#f1f5f9; text-align: left;">
+                                        <th style="padding: 8px; width: 30px; text-align: center;"><input type="checkbox" id="select-all-acomptes" style="cursor: pointer;"></th>
                                         <th style="padding: 8px;">Date</th>
                                         <th style="padding: 8px;">Mois Déduc.</th>
+                                        <th style="padding: 8px;">Mois Effectif</th>
                                         <th style="padding: 8px;">Compte (Caisse)</th>
                                         <th style="padding: 8px;">Bénéficiaire</th>
                                         <th style="padding: 8px;">Remettant</th>
                                         <th style="padding: 8px;">Moyen</th>
                                         <th style="padding: 8px;">Montant</th>
+                                        <th style="padding: 8px;">Reste à déduire</th>
                                         <th style="padding: 8px;">Statut</th>
                                         <th style="padding: 8px; text-align: center;">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    ${transactions.filter(t => t.category && t.category.toUpperCase().trim() === 'ACOMPTE').map(t => {
-            const isDeducted = t.isDeducted === true;
-            let displayAmount = t.amount;
-            let displayDetails = t.details;
+                                    ${(() => {
+        // Get all acomptes for this employee, sorted by date
+        const empAcomptes = transactions.filter(t => t.category && t.category.toUpperCase().trim() === 'ACOMPTE');
+        let totalAcompteAmount = 0;
+        let sumDeducted = 0;
+        
+        // Calculate total and deducted
+        empAcomptes.forEach(t => {
+            let amt = t.amount;
             if (t.beneficiaries && t.beneficiaries.length > 0) {
                 const b = t.beneficiaries.find(bx => bx.name === empName);
-                if (b) {
-                    displayAmount = b.amount;
-                    displayDetails = `[MULTI] ${t.details}`;
+                if (b) amt = b.amount;
+            }
+            totalAcompteAmount += amt;
+            if (t.isDeducted) sumDeducted += amt;
+        });
+        
+        // Now render each row with progressive remaining
+        return empAcomptes.map((t, idx) => {
+            const isDeducted = t.isDeducted === true;
+            let displayAmount = t.amount;
+            if (t.beneficiaries && t.beneficiaries.length > 0) {
+                const b = t.beneficiaries.find(bx => bx.name === empName);
+                if (b) displayAmount = b.amount;
+            }
+            // Progressive remaining = total - (sum of all deducted so far in this row's order)
+            let sumDeductedUpToNow = 0;
+            for (let i = 0; i <= idx; i++) {
+                if (empAcomptes[i].isDeducted) {
+                    let amt = empAcomptes[i].amount;
+                    if (empAcomptes[i].beneficiaries && empAcomptes[i].beneficiaries.length > 0) {
+                        const b = empAcomptes[i].beneficiaries.find(bx => bx.name === empName);
+                        if (b) amt = b.amount;
+                    }
+                    sumDeductedUpToNow += amt;
                 }
             }
+            const progressiveRemaining = Math.max(0, totalAcompteAmount - sumDeductedUpToNow);
+            
             return `
                                         <tr style="border-bottom: 1px solid #eee;" title="${t.details}">
+                                            <td style="padding: 8px; text-align: center;">
+                                                <input type="checkbox" class="acompte-select-cb" data-id="${t.id}" style="cursor: pointer;" ${isDeducted ? 'disabled' : ''}>
+                                            </td>
                                             <td style="padding: 8px;">${formatDate(t.date)}</td>
                                             <td style="padding: 8px; font-weight:700;">${t.advanceMonth || '-'}</td>
+                                            <td style="padding: 8px; font-weight:700; color:#0284c7;">${t.actualDeductionMonth || '-'}</td>
                                             <td style="padding: 8px;">${t.code || t.category} <br> <span style="font-size:0.7rem;color:#777;">${t.caisse || ''}</span></td>
                                             <td style="padding: 8px; font-weight:600;">${empName}</td>
                                             <td style="padding: 8px;">${t.agentRemettant || '-'}</td>
                                             <td style="padding: 8px;"><span class="badge" style="background:#eef2ff; color:#4f46e5;">${t.paymentMode}</span></td>
                                             <td style="padding: 8px; font-weight:800; color:var(--accent-danger);">${formatCurrency(displayAmount)}</td>
+                                            <td style="padding: 8px; font-weight:800; color:${progressiveRemaining > 0 ? '#ea580c' : '#16a34a'};">${formatCurrency(progressiveRemaining)}</td>
                                             <td style="padding: 8px;">
                                                 <span class="badge" style="background: ${isDeducted ? 'rgba(34, 197, 94, 0.1)' : 'rgba(234, 179, 8, 0.1)'}; color: ${isDeducted ? '#16a34a' : '#ca8a04'}; font-weight: 700;">
                                                     ${isDeducted ? '<i class="fa-solid fa-check-double"></i> DÉDUIT' : '<i class="fa-solid fa-clock"></i> EN ATTENTE'}
@@ -2107,7 +2268,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                                 </button>
                                             </td>
                                         </tr>
-                                    `}).join('')}
+                                    `;
+        }).join('');
+    })()}
                                 </tbody>
                             </table>
                         ` : '<p style="font-style:italic; color:#999;">Aucun acompte enregistré.</p>'}
@@ -2153,17 +2316,105 @@ document.addEventListener('DOMContentLoaded', () => {
                 toggleAcompteDeduction(tid, empName, container);
             };
         });
+
+        // Attach grouped validation button
+        const btnValidateGrouped = container.querySelector('#btn-validate-acomptes-grouped');
+        if (btnValidateGrouped) {
+            btnValidateGrouped.onclick = (e) => {
+                e.stopPropagation();
+                const checkboxes = container.querySelectorAll('.acompte-select-cb');
+                const selectedIds = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.getAttribute('data-id'));
+                if (selectedIds.length === 0) {
+                    alert('Aucun acompte sélectionné.');
+                    return;
+                }
+                const promptMonth = prompt('Mois effectif de prélèvement (YYYY-MM):', new Date().toISOString().slice(0, 7));
+                if (promptMonth === null) return; // Annulé
+                if (!/^\d{4}-\d{2}$/.test(promptMonth)) {
+                    alert('Format invalide. Veuillez utiliser YYYY-MM (ex: 2026-07).');
+                    return;
+                }
+                selectedIds.forEach(tid => {
+                    const t = appData.transactions.find(tx => tx.id == tid);
+                    if (t && !t.isDeducted) {
+                        t.isDeducted = true;
+                        t.actualDeductionMonth = promptMonth;
+                    }
+                });
+                saveData();
+                renderEmployeeDetails(empName, container);
+                renderAcomptesPretsView();
+                if (typeof updateDashboard === 'function') updateDashboard();
+                alert('Acomptes validés avec succès.');
+            };
+        }
+
+        // Attach select-all checkbox
+        const selectAllCb = container.querySelector('#select-all-acomptes');
+        if (selectAllCb) {
+            selectAllCb.onchange = (e) => {
+                const checkboxes = container.querySelectorAll('.acompte-select-cb');
+                checkboxes.forEach(cb => {
+                    if (!cb.hasAttribute('disabled')) {
+                        cb.checked = e.target.checked;
+                    }
+                });
+            };
+        }
     }
 
     function toggleAcompteDeduction(id, empName, container) {
         const t = appData.transactions.find(tx => tx.id == id);
         if (t) {
+            if (!t.isDeducted) {
+                // Demander le mois effectif de prélèvement
+                const currentMonth = t.advanceMonth || new Date().toISOString().slice(0, 7);
+                const promptMonth = prompt('Mois effectif de prélèvement (YYYY-MM):', currentMonth);
+                if (promptMonth === null) return; // Annulé
+                if (!/^\d{4}-\d{2}$/.test(promptMonth)) {
+                    alert('Format invalide. Veuillez utiliser YYYY-MM (ex: 2026-07).');
+                    return;
+                }
+                t.actualDeductionMonth = promptMonth;
+            }
             t.isDeducted = !t.isDeducted;
             saveData();
             renderEmployeeDetails(empName, container);
+            renderAcomptesPretsView();
             if (typeof updateDashboard === 'function') updateDashboard();
         }
     }
+
+    function validateAcomptesGrouped() {
+        const checkboxes = document.querySelectorAll('.acompte-select-cb:checked');
+        if (checkboxes.length === 0) {
+            alert('Aucun acompte sélectionné.');
+            return;
+        }
+
+        const promptMonth = prompt('Mois effectif de prélèvement pour tous les sélectionnés (YYYY-MM):', new Date().toISOString().slice(0, 7));
+        if (promptMonth === null) return; // Annulé
+        if (!/^\d{4}-\d{2}$/.test(promptMonth)) {
+            alert('Format invalide. Veuillez utiliser YYYY-MM (ex: 2026-07).');
+            return;
+        }
+
+        checkboxes.forEach(cb => {
+            const tid = cb.getAttribute('data-id');
+            const t = appData.transactions.find(tx => tx.id == tid);
+            if (t && !t.isDeducted) {
+                t.isDeducted = true;
+                t.actualDeductionMonth = promptMonth;
+            }
+        });
+
+        saveData();
+        renderAcomptesPretsView();
+        if (typeof updateDashboard === 'function') updateDashboard();
+        alert('Acomptes validés avec succès.');
+    }
+
+    window.validateAcomptesGrouped = validateAcomptesGrouped;
 
     // --- Stats logic ---
     // --- Stats logic ---
@@ -2351,7 +2602,7 @@ document.addEventListener('DOMContentLoaded', () => {
         appData.transactions.forEach(t => {
             const tCaisseForAcompte = (t.caisse === 'secondary') ? 'secondary' : 'general';
             const matchesCaisse = selectedCaisse === 'all' || tCaisseForAcompte === selectedCaisse;
-            if (t.category && t.category.toUpperCase().trim() === 'ACOMPTE' && !t.isDeducted && matchesCaisse) {
+            if (t.category && t.category.toUpperCase().trim() === 'ACOMPTE' && matchesCaisse) {
                 TOTALAcomptes += t.amount || 0;
             }
             // Ensure older transactions default to 'general' correctly
@@ -2386,7 +2637,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         if (appData.loans) {
             appData.loans.forEach(loan => {
-                if (loan.status === 'pending') totalLoan += loan.amount;
+                totalLoan += loan.amount || 0;
             });
         }
         // Update DOM
@@ -2467,8 +2718,33 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     function updateTopTiers() {
         const tiersMap = {};
-        appData.transactions.forEach(t => {
+        const currentCaisse = state.currentCaisse || 'general';
+
+        // Prefer partnerLedger entries when present (they record charge, paid, remaining)
+        if (appData.partnerLedger) {
+            Object.entries(appData.partnerLedger).forEach(([pname, entries]) => {
+                entries.forEach(en => {
+                    // Try to find related transaction to respect caisse filtering
+                    const tx = (appData.transactions || []).find(t => t.id === en.transactionId);
+                    if (tx && currentCaisse !== 'all' && (tx.caisse || 'general') !== currentCaisse) return;
+                    if (!tiersMap[pname]) tiersMap[pname] = { balance: 0, lastOp: '', details: '', lastDate: '' };
+                    const rem = parseFloat(en.remaining || ((parseFloat(en.charge || 0) - parseFloat(en.paid || 0)).toFixed(2))) || 0;
+                    if (en.type === 'income') tiersMap[pname].balance += rem;
+                    else tiersMap[pname].balance -= rem;
+                    tiersMap[pname].lastOp = en.date || (tx && tx.date) || tiersMap[pname].lastOp;
+                    tiersMap[pname].details = en.category || (tx && tx.category) || tiersMap[pname].details;
+                    tiersMap[pname].lastDate = new Date(tiersMap[pname].lastOp || '').toLocaleDateString('fr-Fr');
+                });
+            });
+        }
+
+        // Also include transactions that have no partnerLedger entry (legacy behavior)
+        (appData.transactions || []).forEach(t => {
             if (t.partner && t.amount) {
+                // skip if this transaction already has ledger entries
+                const presentInLedger = appData.partnerLedger && Object.values(appData.partnerLedger).some(arr => arr.some(en => en.transactionId === t.id));
+                if (presentInLedger) return;
+                if (currentCaisse !== 'all' && (t.caisse || 'general') !== currentCaisse) return;
                 if (!tiersMap[t.partner]) tiersMap[t.partner] = { balance: 0, lastOp: '', details: '', lastDate: '' };
                 const amount = t.amount;
                 if (t.type === 'income') tiersMap[t.partner].balance += amount;
@@ -2478,6 +2754,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 tiersMap[t.partner].lastDate = new Date(t.date).toLocaleDateString('fr-Fr');
             }
         });
+
         const sortedTiers = Object.entries(tiersMap)
             .map(([name, data]) => ({ name, ...data }))
             .sort((a, b) => Math.abs(b.balance) - Math.abs(a.balance))
@@ -3725,7 +4002,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     (t.partner || '') + ' ' +
                     (t.executor || '') + ' ' +
                     (t.agentRemettant || '') + ' ' +
+                    (t.amountCharge || '') + ' ' +
                     (t.amount || '') + ' ' +
+                    (formatCurrency ? formatCurrency(t.amountCharge || 0) : '') + ' ' +
                     formatCurrency(t.amount)
                 ).toUpperCase();
 
@@ -3778,6 +4057,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     </td>
                     <td>
                         ${t.executor ? `<div style="font-size:0.85rem; color:#64748b">${t.executor}</div>` : '-'}
+                    </td>
+                    <td style="font-weight: 700;">
+                        ${t.amountCharge ? formatCurrency(t.amountCharge) : '-'}
                     </td>
                     <td style="color: ${t.type === 'income' ? 'var(--accent-success)' : 'var(--accent-danger)'}; font-weight: 700; font-size: 1rem;">
                         ${t.type === 'income' ? '+' : '-'}${formatCurrency ? formatCurrency(t.amount) : t.amount}
@@ -4715,9 +4997,26 @@ document.addEventListener('DOMContentLoaded', () => {
             if (appContainer) appContainer.style.filter = 'blur(5px)';
         } else {
             // logged in
-            state.currentUser = JSON.parse(currentUser);
+            const cu = JSON.parse(currentUser);
+            state.currentUser = cu;
             if (loginModal) loginModal.style.display = 'none';
             if (appContainer) appContainer.style.filter = 'none';
+
+            const userName = (cu && (cu.name || cu.login || cu.email)) || 'Utilisateur';
+            const topUserNameSpan = document.getElementById('connected-user-name');
+            if (topUserNameSpan) {
+                topUserNameSpan.textContent = userName;
+                topUserNameSpan.style.display = 'inline';
+                topUserNameSpan.style.visibility = 'visible';
+                topUserNameSpan.style.opacity = '1';
+            }
+            const sidebarUserNameSpan = document.getElementById('sidebar-connected-user-name');
+            if (sidebarUserNameSpan) {
+                sidebarUserNameSpan.textContent = userName;
+                sidebarUserNameSpan.style.display = 'inline';
+                sidebarUserNameSpan.style.visibility = 'visible';
+                sidebarUserNameSpan.style.opacity = '1';
+            }
         }
     }
     function setupLogin() {

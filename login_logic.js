@@ -46,13 +46,20 @@ function checkLogin() {
         }
 
         // --- Display user name ---
+        const userName = state.currentUser.name || state.currentUser.login || state.currentUser.email || 'Utilisateur';
         const userNameSpan = document.getElementById('connected-user-name');
         if (userNameSpan) {
-            const userName = state.currentUser.name || state.currentUser.login || state.currentUser.email || 'Utilisateur';
             userNameSpan.textContent = userName;
             userNameSpan.style.display = 'inline';
             userNameSpan.style.visibility = 'visible';
             userNameSpan.style.opacity = '1';
+        }
+        const sidebarUserNameSpan = document.getElementById('sidebar-connected-user-name');
+        if (sidebarUserNameSpan) {
+            sidebarUserNameSpan.textContent = userName;
+            sidebarUserNameSpan.style.display = 'inline';
+            sidebarUserNameSpan.style.visibility = 'visible';
+            sidebarUserNameSpan.style.opacity = '1';
         }
         
         // Apply caisse access restrictions for non-admins
